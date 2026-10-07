@@ -62,6 +62,14 @@ CACHE_ARGS=(
   --disable-sandbox
 )
 
+# Step 1 compiles TypeScript through the workspace's devDependencies. If those
+# are missing (a previous install ran with --production) the failure surfaces as
+# a bare "tsc: command not found"; say what to do instead.
+if [[ ! -x "$REPO_ROOT/node_modules/.bin/tsc" ]]; then
+  echo "error: node_modules/.bin/tsc is missing — run 'pnpm install' at the repo root" >&2
+  exit 1
+fi
+
 echo "==> 1/5 Building the statistics engine (TypeScript)"
 cd "$REPO_ROOT"
 npm_config_manage_package_manager_versions=false \
@@ -113,8 +121,11 @@ else
   echo "    --skip-node: the app will fall back to a node on PATH"
 fi
 
-# App icon: build an .icns from the Electron app's PNG when available.
-ICON_PNG="$REPO_ROOT/apps/desktop/resources/icon.png"
+# App icon: the macOS app ships its own background-less mark
+# (apps/macos/resources/icon.png); fall back to the Electron app's PNG when the
+# local one is missing.
+ICON_PNG="$MACOS_DIR/resources/icon.png"
+[[ -f "$ICON_PNG" ]] || ICON_PNG="$REPO_ROOT/apps/desktop/resources/icon.png"
 if [[ -f "$ICON_PNG" ]]; then
   ICONSET="$MACOS_DIR/.build/AppIcon.iconset"
   rm -rf "$ICONSET"

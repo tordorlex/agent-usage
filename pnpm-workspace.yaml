@@ -9,3 +9,9 @@ allowBuilds:
   electron: true
   esbuild: true
   protobufjs: false
+# 构建（build:macos:*）依赖 devDependencies（typescript）。pnpm 跑脚本前的依赖检查一旦
+# 判定 node_modules 与 lockfile 不同步，会照 node_modules/.modules.yaml 里录制的 included
+# 状态重放一次安装；若那份记录是 devDependencies=false，重放会带 --production 把
+# devDependencies 删掉，构建随即挂在 `tsc: command not found` 上。这里改成只警告：
+# 依赖真的不同步时自己执行 `pnpm install`。
+verifyDepsBeforeRun: warn

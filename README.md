@@ -7,6 +7,10 @@
 </p>
 
 <p align="center">
+  <sub>本仓库是 <a href="https://github.com/juejin-cn/juejin-usage">juejin-cn/juejin-usage</a> 的衍生项目，向原项目与上游贡献者致谢 · <a href="#-原项目与致谢">原项目与致谢</a></sub>
+</p>
+
+<p align="center">
   <a href="https://github.com/juejin-cn/juejin-usage">
     <img src="https://img.shields.io/github/stars/juejin-cn/juejin-usage?style=flat-square" alt="stars">
   </a>
@@ -36,7 +40,38 @@
   <a href="https://juejin.cn">稀土掘金</a>
 </p>
 
+## 🙏 原项目与致谢
+
+本仓库 [agent-usage](https://github.com/tordorlex/agent-usage) 是
+**[稀土掘金 · juejin-cn/juejin-usage](https://github.com/juejin-cn/juejin-usage)** 的衍生项目。
+本项目几乎全部基础能力都来自原项目，本仓库只是在其之上补了一个原生 macOS 客户端：
+
+| 来自原项目（上游） | 本仓库新增 |
+| --- | --- |
+| `packages/core`：各家 Agent 日志解析、用量队列、同步与定价 | `apps/macos`：原生 SwiftUI 菜单栏客户端（macOS 26 + Liquid Glass） |
+| `packages/cli`（`jusage`）、`packages/dashboard` 面板、Electron 桌面端 | `packages/engine`：无界面 Node 边车，用 localhost HTTP + stdout 握手把 core 运行时交给原生宿主 |
+| `/functions/tud-*` 本地 API 契约、`~/.ai-usage` 数据目录与聚合口径 | 原生端的菜单栏常驻、弹出面板、设置 / 关于窗口 |
+
+新增的原生端只做用量统计：不含掘金登录、上报、排行榜、分享、校准，也没有桌面宠物、自动更新与开机自启；
+引擎里 `juejin.enabled` 被强制为 `false`，**不会向任何服务器上报数据**。它仍与上游共用同一份
+`~/.ai-usage` 与同一套契约，因此两边的统计口径一致。
+
+**由衷感谢** [juejin-cn](https://github.com/juejin-cn) 团队与
+[上游全体贡献者](https://github.com/juejin-cn/juejin-usage/graphs/contributors)：
+没有原项目就没有这个仓库。上游采用 MIT 许可证（Copyright (c) 2026 juejin-cn），本仓库沿用同一许可证，
+见 [LICENSE](./LICENSE)。
+
+原项目相关链接：[上游仓库](https://github.com/juejin-cn/juejin-usage) ·
+[Releases](https://github.com/juejin-cn/juejin-usage/releases) ·
+[Issues](https://github.com/juejin-cn/juejin-usage/issues) ·
+[贡献者](https://github.com/juejin-cn/juejin-usage/graphs/contributors)
+
 ## 🖥️ 客户端使用
+
+> 📌 本仓库在原项目之上另做了**原生 macOS 菜单栏客户端**：源码在 [`apps/macos`](./apps/macos/README.md)，
+> 构建执行 `pnpm build:macos:app`（.app）或 `pnpm build:macos:dmg`（.dmg）。
+> 它只做用量统计，**不含**掘金登录 / 排行榜 / 桌面宠物等上游功能，也不上报数据。
+> 下面这一节描述的是原项目的 Electron 桌面端，本仓库仍包含其源码。
 
 Juejin Usage 提供 macOS / Windows 桌面客户端，安装即用，无需额外配置。
 

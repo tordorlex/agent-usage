@@ -57,6 +57,9 @@ pnpm build:macos:dmg          # 等价于 apps/macos/scripts/dmg.sh，--skip-bui
 以及 `apps/macos/dist/JusageMac-<version>.dmg`。两者都是 ad-hoc 签名，未做公证（notarization），
 首次打开需要右键「打开」或在「系统设置 → 隐私与安全性」里放行。
 
+App 图标取 `apps/macos/resources/icon.png`（无底透明版，1024²），缺失时回退到
+`apps/desktop/resources/icon.png`；构建时由 `sips` 生成各档尺寸再 `iconutil` 合成 `AppIcon.icns`。
+
 > 沙箱 / CI 中构建 Swift 时，若 `~/Library/Caches/org.swift.swiftpm` 不可写，
 > 需要把缓存指到仓库内并关闭 SwiftPM 自己的 sandbox：
 > `swift build --disable-sandbox --scratch-path .build --cache-path .swiftpm/cache --config-path .swiftpm/config --security-path .swiftpm/security`
