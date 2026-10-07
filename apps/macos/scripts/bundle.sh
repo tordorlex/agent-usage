@@ -89,6 +89,17 @@ cp "$BINARY" "$CONTENTS/MacOS/$APP_NAME"
 # recursive copy stays self-contained.
 cp -R "$STAGING/." "$ENGINE_DIR/"
 
+# pnpm also drops a self-reference into .pnpm/node_modules (@juejin-opensource/
+# jusage-engine -> ../../../../../packages/engine). Nothing in the bundle imports
+# it and it dangles outside the repo, which makes `codesign --verify --deep` fail
+# with "No such file or directory" — prune every symlink whose target is gone.
+PRUNED=0
+while IFS= read -r -d '' link; do
+  rm -f "$link"
+  PRUNED=$((PRUNED + 1))
+done < <(find "$ENGINE_DIR" -type l ! -exec test -e {} \; -print0)
+[[ "$PRUNED" -gt 0 ]] && echo "    pruned $PRUNED dangling symlink(s) from the engine tree"
+
 if [[ "$SKIP_NODE" -eq 0 ]]; then
   NODE_BIN="${JUSAGE_NODE_BIN:-$(command -v node || true)}"
   if [[ -z "$NODE_BIN" ]]; then

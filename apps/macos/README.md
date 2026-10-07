@@ -48,9 +48,14 @@ cd apps/macos && swift build && swift run
 
 # 打出可双击的 .app（内嵌 node + 引擎，无需本机安装任何东西）
 pnpm build:macos:app          # 等价于 apps/macos/scripts/bundle.sh
+
+# 打成可分发的 .dmg（内含 App + /Applications 快捷方式，先跑一次上面的 .app）
+pnpm build:macos:dmg          # 等价于 apps/macos/scripts/dmg.sh，--skip-build 可复用已有 .app
 ```
 
-产物：`apps/macos/dist/JusageMac.app`（约 123 MB，其中大部分是内嵌的 node）。
+产物：`apps/macos/dist/JusageMac.app`（约 123 MB，其中大部分是内嵌的 node），
+以及 `apps/macos/dist/JusageMac-<version>.dmg`。两者都是 ad-hoc 签名，未做公证（notarization），
+首次打开需要右键「打开」或在「系统设置 → 隐私与安全性」里放行。
 
 > 沙箱 / CI 中构建 Swift 时，若 `~/Library/Caches/org.swift.swiftpm` 不可写，
 > 需要把缓存指到仓库内并关闭 SwiftPM 自己的 sandbox：
