@@ -1,0 +1,12 @@
+# SwiftPM / Clang caches and build products, redirected into the repo so builds
+# also work where ~/Library/Caches is not writable (sandbox / CI).
+.build/
+.swiftpm/
+.clang-cache/
+
+# Assembled application bundle.
+dist/
+
+# Xcode user state (when opened as a project).
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/

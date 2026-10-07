@@ -1,0 +1,40 @@
+{
+  "name": "@juejin-opensource/jusage-engine",
+  "version": "0.1.13",
+  "description": "Juejin AI Usage 本地引擎：把 core 运行时（同步 / 定价 / local-api）以 localhost HTTP + stdout 握手暴露给原生宿主（SwiftUI macOS App）。",
+  "type": "module",
+  "private": true,
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/juejin-cn/juejin-usage.git",
+    "directory": "packages/engine"
+  },
+  "keywords": [
+    "ai",
+    "token",
+    "usage",
+    "engine",
+    "sidecar",
+    "swiftui"
+  ],
+  "files": [
+    "dist",
+    "package.json"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node ./dist/index.js",
+    "dev": "tsc -p tsconfig.json --watch"
+  },
+  "dependencies": {
+    "@juejin-opensource/jusage-core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.10",
+    "typescript": "^5.8.2"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

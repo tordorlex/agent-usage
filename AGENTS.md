@@ -7,13 +7,37 @@
 | 路径 | 职责 |
 |------|------|
 | `packages/core` | parser、queue、sync、local-api |
+| `packages/engine` | 无界面 Node 边车：把 core 运行时以 localhost HTTP + stdout 握手给原生宿主 |
 | `packages/cli` | `jusage`：HTTP + 托管 dashboard dist |
 | `packages/dashboard` | CLI 内置面板与线上 `/aiusage/` 同一份 |
-| `apps/desktop` | Electron；`src/renderer` 与 dashboard **同构但独立** |
+| `apps/macos` | **原生 SwiftUI 菜单栏应用**（macOS 26 + Liquid Glass），取代 Electron；只做用量统计 |
+| `apps/desktop` | Electron（待移除）：`src/renderer` 与 dashboard **同构但独立** |
 
 改 `packages/dashboard/src` 的共享 UI / 数据层时，核对该路径在 `apps/desktop/src/renderer` 是否有同名副本，有则一起改完。
 
-PR / 分支命名 / Web 对照线上：[CONTRIBUTING.md](CONTRIBUTING.md)。Desktop 主进程、IPC、heartbeat、mock：[apps/desktop/README.md](apps/desktop/README.md)。
+PR / 分支命名 / Web 对照线上：[CONTRIBUTING.md](CONTRIBUTING.md)。Desktop 主进程、IPC、heartbeat、mock：[apps/desktop/README.md](apps/desktop/README.md)。原生 Mac 端：[apps/macos/README.md](apps/macos/README.md)。边车：[packages/engine/README.md](packages/engine/README.md)。
+
+## 原生 Mac 端（apps/macos）
+
+`apps/macos` 是无主窗口的菜单栏应用；界面是弹出面板，设置 / 关于是独立小窗口。
+它**不改数据层**：启动时拉起 `packages/engine`，经 `127.0.0.1` 上的 localhost HTTP 消费
+与 CLI / Electron 相同的 `/functions/tud-*` 契约。
+
+- 只保留用量统计；掘金（登录 / 上报 / 排行榜 / 分享 / 校准）、桌面宠物、自动更新、开机自启全部删除。
+- 引擎被强制 `juejin.enabled=false`，`PUT /functions/tud-config` 无法重新打开，**恒不上报**。
+- 采集权默认不抢占：别的 runtime 在采集时以 observer 只读同一份 `~/.ai-usage`；设置里可开启接管。
+- 聚合口径必须与 `apps/desktop/src/renderer/lib/*` 对齐（指标卡是区间口径、趋势是相邻两天比较、
+  渠道筛选按 `models` 占比缩放、工具别名归一化），否则两版数字对不上。
+- **面板内不要用横向 `ScrollView`**：`ScrollView` 会把内容宽度上报为自身理想宽度，把整列撑到
+  900pt 以上，再被 `.frame(width: 452)` 居中裁掉两侧（曾因此只显示右列指标卡、热力图月份标签重叠）。
+  宽度内的内容必须自适应可用宽度。整数 x 轴的 `BarMark` 必须显式给 `width:`，否则 30/90 桶时柱子重叠。
+- Swift Charts：整数 x 轴的标签要读 `value.as(Double.self)`（`Int` 永远失败，X 轴会全空）；
+  `BarMark` 要给 `width:`；绘图区矮时内置图例会被丢弃，多序列图改用自绘 `ChartLegendRow`。
+- 无窗口应用没法截图：用真实 `NSWindow` + 视图树 frame 查布局越界，用
+  `apps/macos/scripts/ocr.swift`（Vision OCR）读回文字与坐标查内容。
+  `ImageRenderer` 离屏渲染画不出 Liquid Glass（得到全透明图），`cacheDisplay` 也抓不到玻璃层。
+- 构建：`pnpm build:macos:app` → `apps/macos/dist/JusageMac.app`（内嵌 node + 引擎）。
+  需要 macOS 26 / Xcode 26。
 
 ## 开发指南
 

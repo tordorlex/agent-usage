@@ -1,0 +1,6 @@
+# Scratch data dir used by local smoke runs (never the real ~/.ai-usage).
+.tmp-data/
+# stdout/stderr/artifact capture of a smoke run.
+.tmp-data-run/
+# JUSAGE_CONFIG_HOME override used by smoke.sh (core's device-id sidecar).
+.tmp-data-config/
