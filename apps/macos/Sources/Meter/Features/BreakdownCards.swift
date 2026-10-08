@@ -48,7 +48,7 @@ struct StackedBarsCard: View {
                     }
 
                     if rows.count > visibleRows {
-                        Button(showAll ? "收起" : "查看全部（\(rows.count)）") {
+                        Button(showAll ? Copy.collapse : Copy.showAll(rows.count)) {
                             withAnimation(.smooth(duration: 0.2)) { showAll.toggle() }
                         }
                         .font(AppFont.text(11))
@@ -119,7 +119,7 @@ private struct BarRow: View {
 
     private var tooltip: String {
         let total = max(row.segments.reduce(0) { $0 + $1.value }, 1)
-        var lines = ["\(row.label) · \(Fmt.tokens(row.total)) Token · \(Fmt.usd(row.costUsd))"]
+        var lines = [Copy.barTooltip(row.label, tokens: Fmt.tokens(row.total), cost: Fmt.usd(row.costUsd))]
         for segment in row.segments.prefix(10) {
             let pct = segment.value / total * 100
             lines.append("  \(segment.label)  \(Fmt.tokens(segment.value)) · \(Fmt.pct(pct))")
@@ -147,7 +147,7 @@ struct DistributionCard: View {
                     SegmentedPicker(
                         options: [UsageStore.MetricKind.tokens, .cost],
                         selection: $metric,
-                        label: { $0 == .tokens ? "Token" : "费用" }
+                        label: { $0 == .tokens ? Copy.metricTokens : Copy.metricCostShort }
                     )
                 }
 
@@ -171,7 +171,7 @@ struct DistributionCard: View {
     private var donut: some View {
         Chart(visibleSlices) { slice in
             SectorMark(
-                angle: .value("用量", value(of: slice)),
+                angle: .value(Copy.axisUsage, value(of: slice)),
                 innerRadius: .ratio(0.62),
                 angularInset: 1
             )
@@ -181,7 +181,7 @@ struct DistributionCard: View {
         .chartLegend(.hidden)
         .overlay {
             VStack(spacing: 2) {
-                Text(metric == .tokens ? "Tokens" : "费用")
+                Text(metric == .tokens ? Copy.metricTokensPlural : Copy.metricCostShort)
                     .font(AppFont.text(8))
                     .foregroundStyle(Theme.muted)
                 Text(metric == .tokens ? Fmt.tokens(totalValue) : Fmt.usd(totalValue))
@@ -203,7 +203,7 @@ struct DistributionCard: View {
                 )
             }
             if slices.count > inlineLimit {
-                Button(showAll ? "收起" : "查看全部（\(slices.count)）") {
+                Button(showAll ? Copy.collapse : Copy.showAll(slices.count)) {
                     withAnimation(.smooth(duration: 0.2)) { showAll.toggle() }
                 }
                 .font(AppFont.text(11))
@@ -259,6 +259,6 @@ private struct LegendRow: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .help(isHidden ? "显示 \(slice.label)" : "隐藏 \(slice.label)")
+        .help(isHidden ? Copy.legendShow(slice.label) : Copy.legendHide(slice.label))
     }
 }

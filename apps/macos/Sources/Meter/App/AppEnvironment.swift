@@ -19,8 +19,21 @@ final class AppEnvironment {
     let prefs = AppPreferences()
     let store = UsageStore()
 
-    /// Populated once the engine reports its port; shown in Settings.
-    private(set) var engineStatusText: String = "正在启动统计引擎…"
+    /// True between a manual restart and the next handshake, so the status line
+    /// can say "restarting" rather than "starting".
+    private(set) var isRestarting = false
+
+    /// Shown in the panel footer and in Settings. Derived from the engine's
+    /// phase instead of being stored as a sentence, so it follows a language
+    /// change like every other string.
+    var engineStatusText: String {
+        switch engine.phase {
+        case .failed(let failure): return failure.message
+        case .running(let port): return Copy.engineConnected(port)
+        case .idle, .starting:
+            return isRestarting ? Copy.engineRestarting : Copy.engineStarting
+        }
+    }
 
     private var client: LocalAPIClient?
     private var didBootstrap = false
@@ -31,7 +44,7 @@ final class AppEnvironment {
 
         engine.onReady = { [weak self] host, port in
             guard let self else { return }
-            self.engineStatusText = "已连接 127.0.0.1:\(port)"
+            self.isRestarting = false
 
             if let existing = self.client {
                 // The sidecar binds an ephemeral port, so a restart changes it.
@@ -48,11 +61,6 @@ final class AppEnvironment {
             }
         }
 
-        engine.onUnavailable = { [weak self] reason in
-            guard let self else { return }
-            self.engineStatusText = reason
-        }
-
         engine.takesOwnership = prefs.takesOwnership
         engine.start()
     }
@@ -61,7 +69,7 @@ final class AppEnvironment {
     func restartEngine() {
         store.detach()
         client = nil
-        engineStatusText = "正在重启统计引擎…"
+        isRestarting = true
         engine.restart()
     }
 

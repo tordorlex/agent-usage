@@ -13,11 +13,51 @@ final class EngineController {
         case idle
         case starting
         case running(port: Int)
-        case failed(String)
+        case failed(Failure)
 
         var isRunning: Bool {
             if case .running = self { return true }
             return false
+        }
+    }
+
+    /// Why the sidecar is unusable.
+    ///
+    /// Kept structural rather than stored as a sentence so the message follows
+    /// the UI language: `EngineController` may fail before any window exists,
+    /// and a language switch afterwards must still retranslate the banner.
+    /// Only `.reported` carries text we did not write.
+    enum Failure: Equatable {
+        /// `EngineLocation` could not find node or the engine script.
+        case location(EngineLocation.LocatorError)
+        /// The child process could not be launched at all.
+        case launch(String)
+        /// The handshake arrived without a usable port.
+        case invalidPort
+        /// The engine reported an error over stdout.
+        case reported(String)
+        /// Exited before the handshake completed.
+        case exitedImmediately(status: Int32, detail: String)
+        /// Restart budget exhausted.
+        case gaveUp
+
+        var message: String {
+            switch self {
+            case .location(let error):
+                return error.message
+            case .launch(let detail):
+                return Copy.engineSpawnFailed(detail)
+            case .invalidPort:
+                return Copy.engineInvalidPort
+            case .reported(let text):
+                return text
+            case .exitedImmediately(let status, let detail):
+                return detail.isEmpty
+                    ? Copy.engineExitedImmediately(status)
+                    : Copy.engineLaunchFailed(status, detail: detail)
+            case .gaveUp:
+                return Copy.engineGaveUp
+            }
         }
     }
 
@@ -39,8 +79,6 @@ final class EngineController {
 
     /// Called once the sidecar is listening. The app wires its API client here.
     var onReady: ((_ host: String, _ port: Int) -> Void)?
-    /// Called when the sidecar stops or fails, so the UI can drop stale data.
-    var onUnavailable: ((_ reason: String) -> Void)?
 
     private var process: Process?
     private var stdoutTask: Task<Void, Never>?
@@ -76,15 +114,18 @@ final class EngineController {
         let location: EngineLocation
         do {
             location = try EngineLocation.resolve()
+        } catch let error as EngineLocation.LocatorError {
+            phase = .failed(.location(error))
+            return
         } catch {
-            phase = .failed(error.localizedDescription)
+            phase = .failed(.launch(error.localizedDescription))
             return
         }
 
         do {
             try spawn(location: location)
         } catch {
-            phase = .failed("启动统计引擎失败：\(error.localizedDescription)")
+            phase = .failed(.launch(error.localizedDescription))
         }
     }
 
@@ -201,18 +242,14 @@ final class EngineController {
                 dataDir = URL(fileURLWithPath: reported)
             }
             guard port > 0 else {
-                let message = "统计引擎未返回有效端口"
-                phase = .failed(message)
-                onUnavailable?(message)
+                phase = .failed(.invalidPort)
                 return
             }
             restartAttempts = 0
             phase = .running(port: port)
             onReady?(host, port)
         case "engine-error":
-            let message = object["message"] as? String ?? "统计引擎启动失败"
-            phase = .failed(message)
-            onUnavailable?(message)
+            phase = .failed(.reported(object["message"] as? String ?? Copy.engineLaunchFailed))
         default:
             break
         }
@@ -248,7 +285,6 @@ final class EngineController {
 
         if isStopping {
             phase = .idle
-            onUnavailable?("统计引擎已停止")
             return
         }
 
@@ -258,23 +294,16 @@ final class EngineController {
         // configuration problem; report stderr rather than looping.
         if case .starting = phase {
             let detail = diagnostics.suffix(6).joined(separator: "\n")
-            let message = detail.isEmpty
-                ? "统计引擎启动后立即退出（exit \(status)）"
-                : "统计引擎启动失败（exit \(status)）：\n\(detail)"
-            phase = .failed(message)
-            onUnavailable?(message)
+            phase = .failed(.exitedImmediately(status: status, detail: detail))
             return
         }
 
         guard restartAttempts < maxRestartAttempts else {
-            let message = "统计引擎反复退出，已停止重试。请查看运行日志。"
-            phase = .failed(message)
-            onUnavailable?(message)
+            phase = .failed(.gaveUp)
             return
         }
         restartAttempts += 1
         phase = .starting
-        onUnavailable?("统计引擎正在重启")
         Task { @MainActor [weak self] in
             try? await Task.sleep(for: .seconds(2))
             guard let self, !self.isStopping else { return }

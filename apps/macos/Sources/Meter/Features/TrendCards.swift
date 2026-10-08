@@ -12,7 +12,8 @@ private struct SeriesPoint: Identifiable {
 /// `Token 用量` — a single total area, or a detailed breakdown by token kind.
 struct TokenTrendCard: View {
     let points: [TrendPoint]
-    let periodLabel: String
+    /// `今天` plots hours rather than days, which the title states.
+    let isToday: Bool
 
     @State private var detailed = false
 
@@ -26,11 +27,14 @@ struct TokenTrendCard: View {
     var body: some View {
         CardSurface(padding: 11) {
             VStack(alignment: .leading, spacing: 10) {
-                CardHeader(title: title, subtitle: detailed ? "输入、输出、缓存与其他 Token 趋势" : "总 Token 用量趋势") {
+                CardHeader(
+                    title: isToday ? Copy.tokenUsageToday : Copy.tokenUsage,
+                    subtitle: detailed ? Copy.tokenTrendDetailedSubtitle : Copy.tokenTrendSubtitle
+                ) {
                     SegmentedPicker(
                         options: [false, true],
                         selection: $detailed,
-                        label: { $0 ? "详细" : "全部" }
+                        label: { $0 ? Copy.pickerDetail : Copy.pickerAll }
                     )
                 }
 
@@ -39,51 +43,52 @@ struct TokenTrendCard: View {
                 } else {
                     chart.frame(height: 132)
                     if detailed {
-                        ChartLegendRow(items: detailedKeys.map { ($0.name, $0.color) })
+                        ChartLegendRow(items: activeKeys.map { ($0.name, $0.color) })
                     }
                 }
             }
         }
     }
 
-    private var title: String {
-        periodLabel == "今日" ? "今日 Token 用量" : "Token 用量"
-    }
-
     private var chart: some View {
         Chart {
             if detailed {
-                ForEach(series(keys: detailedKeys)) { point in
+                ForEach(series(keys: activeKeys)) { point in
                     AreaMark(
-                        x: .value("日期", point.index),
-                        y: .value("Token", point.value)
+                        x: .value(Copy.axisDate, point.index),
+                        y: .value(Copy.axisToken, point.value)
                     )
-                    .foregroundStyle(by: .value("系列", point.series))
+                    .foregroundStyle(by: .value(Copy.axisSeries, point.series))
                     .opacity(0.22)
                     LineMark(
-                        x: .value("日期", point.index),
-                        y: .value("Token", point.value)
+                        x: .value(Copy.axisDate, point.index),
+                        y: .value(Copy.axisToken, point.value)
                     )
-                    .foregroundStyle(by: .value("系列", point.series))
+                    .foregroundStyle(by: .value(Copy.axisSeries, point.series))
                     .lineStyle(StrokeStyle(lineWidth: 1.6))
                 }
             } else {
-                ForEach(series(keys: [("总 Token", totalColor, \.totalTokens)])) { point in
+                ForEach(series(keys: activeKeys)) { point in
                     AreaMark(
-                        x: .value("日期", point.index),
-                        y: .value("Token", point.value)
+                        x: .value(Copy.axisDate, point.index),
+                        y: .value(Copy.axisToken, point.value)
                     )
                     .foregroundStyle(totalColor.opacity(0.25))
                     LineMark(
-                        x: .value("日期", point.index),
-                        y: .value("Token", point.value)
+                        x: .value(Copy.axisDate, point.index),
+                        y: .value(Copy.axisToken, point.value)
                     )
                     .foregroundStyle(totalColor)
                     .lineStyle(StrokeStyle(lineWidth: 1.8))
                 }
             }
         }
-        .chartForegroundStyleScale(styleScale)
+        // Domain and range come from the same list that feeds the marks, so the
+        // style scale can never disagree with the plotted series.
+        .chartForegroundStyleScale(
+            domain: activeKeys.map(\.name),
+            range: activeKeys.map(\.color)
+        )
         .chartLegend(.hidden)
         .chartXAxis { xAxis }
         .chartYAxis { yAxis }
@@ -91,28 +96,19 @@ struct TokenTrendCard: View {
 
     private typealias Key = (name: String, color: Color, value: KeyPath<TrendPoint, Double>)
 
+    private var totalKey: Key { (Copy.seriesTotalTokens, totalColor, \.totalTokens) }
+
     private var detailedKeys: [Key] {
         [
-            ("总 Token", totalColor, \.totalTokens),
-            ("输入", inputColor, \.inputTokens),
-            ("输出", outputColor, \.outputTokens),
-            ("缓存", cacheColor, \.cachedTokens),
-            ("其他", otherColor, \.otherTokens),
+            totalKey,
+            (Copy.seriesInput, inputColor, \.inputTokens),
+            (Copy.seriesOutput, outputColor, \.outputTokens),
+            (Copy.seriesCache, cacheColor, \.cachedTokens),
+            (Copy.seriesOther, otherColor, \.otherTokens),
         ]
     }
 
-    private var styleScale: KeyValuePairs<String, Color> {
-        if detailed {
-            return [
-                "总 Token": totalColor,
-                "输入": inputColor,
-                "输出": outputColor,
-                "缓存": cacheColor,
-                "其他": otherColor,
-            ]
-        }
-        return ["总 Token": totalColor]
-    }
+    private var activeKeys: [Key] { detailed ? detailedKeys : [totalKey] }
 
     private func series(keys: [Key]) -> [SeriesPoint] {
         points.enumerated().flatMap { index, point in
@@ -175,13 +171,13 @@ struct DailyTrendCard: View {
         CardSurface(padding: 11) {
             VStack(alignment: .leading, spacing: 10) {
                 CardHeader(
-                    title: metric == .tokens ? "每日趋势" : "费用趋势",
+                    title: metric == .tokens ? Copy.dailyTrend : Copy.costTrend,
                     subtitle: subtitle
                 ) {
                     SegmentedPicker(
                         options: [UsageStore.MetricKind.tokens, .cost],
                         selection: $metric,
-                        label: { $0 == .tokens ? "Token" : "费用" }
+                        label: { $0 == .tokens ? Copy.metricTokens : Copy.metricCostShort }
                     )
                 }
 
@@ -190,20 +186,22 @@ struct DailyTrendCard: View {
                 } else {
                     chart.frame(height: 132)
                     if metric == .tokens {
-                        ChartLegendRow(items: tokenLegend)
+                        ChartLegendRow(items: tokenKeys.map { ($0.name, $0.color) })
                     }
                 }
             }
         }
     }
 
+    private typealias Key = (name: String, color: Color, value: KeyPath<TrendPoint, Double>)
+
     /// Series key for the stacked bars; the cost curve is a single series.
-    private var tokenLegend: [(label: String, color: Color)] {
+    private var tokenKeys: [Key] {
         [
-            ("输入", inputColor),
-            ("缓存输入", cachedColor),
-            ("输出", outputColor),
-            ("其他", otherColor),
+            (Copy.seriesInput, inputColor, \.inputTokens),
+            (Copy.seriesCachedInput, cachedColor, \.cachedTokens),
+            (Copy.seriesOutput, outputColor, \.outputTokens),
+            (Copy.seriesOther, otherColor, \.otherTokens),
         ]
     }
 
@@ -215,19 +213,13 @@ struct DailyTrendCard: View {
     }
 
     private var bars: [Bucket] {
-        let keys: [(String, Color, KeyPath<TrendPoint, Double>)] = [
-            ("输入", inputColor, \.inputTokens),
-            ("缓存输入", cachedColor, \.cachedTokens),
-            ("输出", outputColor, \.outputTokens),
-            ("其他", otherColor, \.otherTokens),
-        ]
-        return points.enumerated().flatMap { index, point in
-            keys.map { key in
+        points.enumerated().flatMap { index, point in
+            tokenKeys.map { key in
                 Bucket(
-                    id: "\(index)-\(key.0)",
+                    id: "\(index)-\(key.name)",
                     index: index,
-                    series: key.0,
-                    value: point[keyPath: key.2]
+                    series: key.name,
+                    value: point[keyPath: key.value]
                 )
             }
         }
@@ -242,33 +234,31 @@ struct DailyTrendCard: View {
                 // Swift Charts falls back to a fixed mark size, which makes bars
                 // overlap once the range has 30–90 buckets.
                 BarMark(
-                    x: .value("日期", bucket.index),
-                    y: .value("Token", bucket.value),
+                    x: .value(Copy.axisDate, bucket.index),
+                    y: .value(Copy.axisToken, bucket.value),
                     width: .ratio(0.72)
                 )
-                .foregroundStyle(by: .value("系列", bucket.series))
+                .foregroundStyle(by: .value(Copy.axisSeries, bucket.series))
             }
-            .chartForegroundStyleScale([
-                "输入": inputColor,
-                "缓存输入": cachedColor,
-                "输出": outputColor,
-                "其他": otherColor,
-            ])
+            .chartForegroundStyleScale(
+                domain: tokenKeys.map(\.name),
+                range: tokenKeys.map(\.color)
+            )
             .chartLegend(.hidden)
             .chartXAxis { axis }
             .chartYAxis { yAxis }
         } else {
             Chart(points.enumerated().map { index, point in
-                Bucket(id: "cost-\(index)", index: index, series: "费用", value: point.costUsd)
+                Bucket(id: "cost-\(index)", index: index, series: Copy.seriesCost, value: point.costUsd)
             }) { bucket in
                 AreaMark(
-                    x: .value("日期", bucket.index),
-                    y: .value("费用", bucket.value)
+                    x: .value(Copy.axisDate, bucket.index),
+                    y: .value(Copy.axisCost, bucket.value)
                 )
                 .foregroundStyle(costColor.opacity(0.25))
                 LineMark(
-                    x: .value("日期", bucket.index),
-                    y: .value("费用", bucket.value)
+                    x: .value(Copy.axisDate, bucket.index),
+                    y: .value(Copy.axisCost, bucket.value)
                 )
                 .foregroundStyle(costColor)
                 .lineStyle(StrokeStyle(lineWidth: 1.8))

@@ -99,10 +99,10 @@ actor LocalAPIClient {
     ) async throws -> T {
         let envelope: APIEnvelope<T> = try await perform(path, method: method, query: query, body: body)
         guard envelope.success else {
-            throw APIError(message: envelope.message ?? "请求失败", status: nil)
+            throw APIError(message: envelope.message ?? Copy.requestFailed, status: nil)
         }
         guard let data = envelope.data else {
-            throw APIError(message: "响应缺少 data 字段", status: nil)
+            throw APIError(message: Copy.missingDataField, status: nil)
         }
         return data
     }
@@ -118,11 +118,11 @@ actor LocalAPIClient {
         body: Data?
     ) async throws -> T {
         guard var components = URLComponents(url: baseURL.appendingPathComponent(path), resolvingAgainstBaseURL: false) else {
-            throw APIError(message: "非法请求地址 \(path)", status: nil)
+            throw APIError(message: Copy.invalidRequestURL(path), status: nil)
         }
         if !query.isEmpty { components.queryItems = query }
         guard let url = components.url else {
-            throw APIError(message: "非法请求地址 \(path)", status: nil)
+            throw APIError(message: Copy.invalidRequestURL(path), status: nil)
         }
 
         var request = URLRequest(url: url)
@@ -138,7 +138,7 @@ actor LocalAPIClient {
         do {
             (data, response) = try await session.data(for: request)
         } catch {
-            throw APIError(message: "无法连接本地统计服务：\(error.localizedDescription)", status: nil)
+            throw APIError(message: Copy.localServiceUnreachable(error.localizedDescription), status: nil)
         }
 
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
@@ -153,7 +153,7 @@ actor LocalAPIClient {
         do {
             return try decoder.decode(T.self, from: data)
         } catch {
-            throw APIError(message: "解析响应失败：\(error)", status: status)
+            throw APIError(message: Copy.responseDecodeFailed("\(error)"), status: status)
         }
     }
 }

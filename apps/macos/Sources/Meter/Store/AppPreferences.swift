@@ -16,9 +16,9 @@ final class AppPreferences {
 
         var label: String {
             switch self {
-            case .system: return "跟随系统"
-            case .light: return "浅色"
-            case .dark: return "深色"
+            case .system: return Copy.themeSystem
+            case .light: return Copy.themeLight
+            case .dark: return Copy.themeDark
             }
         }
 
@@ -46,9 +46,9 @@ final class AppPreferences {
 
         var label: String {
             switch self {
-            case .both: return "Token 和金额"
-            case .tokens: return "仅 Token"
-            case .cost: return "仅金额"
+            case .both: return Copy.trayBoth
+            case .tokens: return Copy.trayTokens
+            case .cost: return Copy.trayCost
             }
         }
     }
@@ -71,10 +71,11 @@ final class AppPreferences {
             }
         }
 
-        /// Segmented-control label: `今天` / `7D` / `30D` / `90D`.
+        /// Segmented-control label: `今天` / `7D` / `30D` / `90D`. The day counts
+        /// are unit suffixes rather than words, so they are not translated.
         var label: String {
             switch self {
-            case .today: return "今天"
+            case .today: return Copy.rangeToday
             case .week: return "7D"
             case .month: return "30D"
             case .quarter: return "90D"
@@ -84,10 +85,10 @@ final class AppPreferences {
         /// Long form used in captions: `今天` / `近 7 天` / …
         var longLabel: String {
             switch self {
-            case .today: return "今天"
-            case .week: return "近 7 天"
-            case .month: return "近 30 天"
-            case .quarter: return "近 90 天"
+            case .today: return Copy.rangeToday
+            case .week: return Copy.rangeWeekLong
+            case .month: return Copy.rangeMonthLong
+            case .quarter: return Copy.rangeQuarterLong
             }
         }
     }
@@ -98,6 +99,7 @@ final class AppPreferences {
         static let showTrayUsage = "tud.showTrayUsage"
         static let trayUsageMode = "tud.trayUsageMode"
         static let takesOwnership = "tud.takesOwnership"
+        static let language = "tud.language"
     }
 
     private let defaults: UserDefaults
@@ -123,6 +125,15 @@ final class AppPreferences {
         didSet { defaults.set(takesOwnership, forKey: Key.takesOwnership) }
     }
 
+    /// UI language. Defaults to `.system`, so a fresh install renders in the
+    /// macOS language and needs no configuration.
+    var language: LanguagePreference {
+        didSet {
+            defaults.set(language.rawValue, forKey: Key.language)
+            Localization.shared.apply(language)
+        }
+    }
+
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         themeMode = ThemeMode(rawValue: defaults.string(forKey: Key.themeMode) ?? "") ?? .system
@@ -130,15 +141,19 @@ final class AppPreferences {
         showTrayUsage = defaults.object(forKey: Key.showTrayUsage) as? Bool ?? true
         trayUsageMode = TrayUsageMode(rawValue: defaults.string(forKey: Key.trayUsageMode) ?? "") ?? .both
         takesOwnership = defaults.object(forKey: Key.takesOwnership) as? Bool ?? false
+        language = LanguagePreference(rawValue: defaults.string(forKey: Key.language) ?? "") ?? .system
+        // `didSet` does not fire during init, so publish the stored choice now —
+        // before any view or menu builds its first string.
+        Localization.shared.apply(language)
     }
 
-    /// Menu-bar title, e.g. `1.2M Token · $3.40`.
+    /// Menu-bar title, e.g. `1.2M Token · $3.40` / `1.2M tokens · $3.40`.
     func trayTitle(tokens: Int64, costUsd: Double) -> String? {
         guard showTrayUsage else { return nil }
         switch trayUsageMode {
-        case .tokens: return "\(Fmt.tokens(Double(tokens))) Token"
+        case .tokens: return "\(Fmt.tokens(Double(tokens))) \(Copy.tokenUnit)"
         case .cost: return Fmt.usd(costUsd)
-        case .both: return "\(Fmt.tokens(Double(tokens))) Token · \(Fmt.usd(costUsd))"
+        case .both: return "\(Fmt.tokens(Double(tokens))) \(Copy.tokenUnit) · \(Fmt.usd(costUsd))"
         }
     }
 }

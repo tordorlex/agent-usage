@@ -101,7 +101,7 @@ enum StatsClock {
         return (weekday + 5) % 7
     }
 
-    /// Weekday index with Sunday = 0, matching the heatmap's `日一二三四五六` rows.
+    /// Weekday index with Sunday = 0, matching the heatmap's Sunday-first rows.
     static func sundayFirstWeekday(_ date: String, _ identifier: String? = nil) -> Int {
         let formatter = dateFormatter
         formatter.timeZone = zone(identifier)

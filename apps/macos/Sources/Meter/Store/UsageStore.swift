@@ -134,11 +134,32 @@ final class UsageStore {
 
     // MARK: State
 
+    /// Why the dashboard has no data. Kept structural so the banner text follows
+    /// the UI language; `.api` carries whatever the engine reported.
+    enum Failure {
+        case api(String)
+        case load
+        case loadDetail(String)
+        case sync
+
+        var message: String {
+            switch self {
+            case .api(let text): return text
+            case .load: return Copy.dataLoadFailed
+            case .loadDetail(let detail): return Copy.dataLoadFailed(detail)
+            case .sync: return Copy.syncFailed
+            }
+        }
+    }
+
     private(set) var isLoading = false
     private(set) var isSyncing = false
     private(set) var isExpandingRange = false
-    private(set) var errorMessage: String?
+    private(set) var failure: Failure?
     private(set) var hasLoadedOnce = false
+
+    /// Rendered by the dashboard banner; `nil` while everything is healthy.
+    var errorMessage: String? { failure?.message }
 
     private var client: LocalAPIClient?
     private var pollTask: Task<Void, Never>?
@@ -207,7 +228,7 @@ final class UsageStore {
         guard !isLoading else { return }
 
         isLoading = true
-        if !hasLoadedOnce { errorMessage = nil }
+        if !hasLoadedOnce { failure = nil }
         defer { isLoading = false }
 
         let rangeDays = range.days
@@ -245,13 +266,13 @@ final class UsageStore {
                 statsTimezone = loadedHourly.timeZone
             }
             lastSyncStamp = loadedStatus.lastSyncAt ?? ""
-            errorMessage = nil
+            failure = nil
             hasLoadedOnce = true
             ensuredMaxDays = max(ensuredMaxDays, rangeDays)
         } catch let error as APIError {
-            errorMessage = error.errorDescription ?? "数据加载失败"
+            failure = .api(error.message)
         } catch {
-            errorMessage = "数据加载失败：\(error.localizedDescription)"
+            failure = .loadDetail(error.localizedDescription)
         }
     }
 
@@ -277,9 +298,9 @@ final class UsageStore {
             ensuredMaxDays = 0
             await reload()
         } catch let error as APIError {
-            errorMessage = error.errorDescription ?? "同步失败，请稍后重试"
+            failure = .api(error.message)
         } catch {
-            errorMessage = "同步失败，请稍后重试"
+            failure = .sync
         }
     }
 
@@ -325,9 +346,9 @@ final class UsageStore {
 
     /// Selection badge text for the channel filter.
     var channelFilterLabel: String {
-        if selectedSources.isEmpty { return "全部渠道" }
+        if selectedSources.isEmpty { return Copy.allChannels }
         if selectedSources.count == 1 { return SourceCatalog.label(selectedSources.first!) }
-        return "已选 \(selectedSources.count) 个渠道"
+        return Copy.channelsSelected(selectedSources.count)
     }
 
     func toggleSource(_ source: String) {
@@ -475,7 +496,7 @@ final class UsageStore {
         return .between(current: rows[rows.count - 1], previous: rows[rows.count - 2])
     }
 
-    /// Request-count caption, e.g. `132 次请求`.
+    /// Request-count caption, e.g. `132 次请求` / `132 requests`.
     var requestCaption: String? {
         let totals = overview
         let count = totals.requestCount ?? (totals.knownRequestCount > 0 ? totals.knownRequestCount : nil)
@@ -484,7 +505,7 @@ final class UsageStore {
         formatter.numberStyle = .decimal
         formatter.groupingSeparator = ","
         let text = formatter.string(from: NSNumber(value: count)) ?? "\(count)"
-        return "\(text) 次请求"
+        return Copy.requests(text)
     }
 
     // MARK: - Trends
@@ -555,9 +576,7 @@ final class UsageStore {
 
     // MARK: - Stacked breakdowns
 
-    private static let unattributedLabel = "未归类"
-
-    /// 工具与模型用量 — one row per channel, one segment per model.
+    /// One row per channel, one segment per model.
     var toolModelRows: [StackedRow] {
         var bySource: [String: [ModelBreakdownRow]] = [:]
         for row in rangeModelRows {
@@ -573,7 +592,7 @@ final class UsageStore {
                 id: source,
                 label: SourceCatalog.label(source),
                 color: SourceCatalog.color(source),
-                detail: "\(sorted.count) 个模型 · \(Fmt.usd(cost))",
+                detail: Copy.modelCount(sorted.count, cost: Fmt.usd(cost)),
                 total: total,
                 costUsd: cost,
                 pct: grandTotal > 0 ? total / grandTotal * 100 : 0,
@@ -603,7 +622,7 @@ final class UsageStore {
                 id: row.project,
                 label: row.project,
                 color: Theme.chartColor(abs(row.project.hashValue) % 8),
-                detail: "\(models.count) 个模型 · \(Fmt.usd(cost))",
+                detail: Copy.modelCount(models.count, cost: Fmt.usd(cost)),
                 total: total,
                 costUsd: cost,
                 pct: grandTotal > 0 ? total / grandTotal * 100 : 0,
@@ -675,7 +694,7 @@ final class UsageStore {
         return head + [
             DistributionSlice(
                 id: "__other",
-                label: "其他",
+                label: Copy.seriesOther,
                 color: Theme.muted,
                 tokens: otherTokens,
                 costUsd: otherCost,
@@ -691,7 +710,7 @@ final class UsageStore {
 
     var drilldownCaption: String? {
         guard let selectedDate else { return nil }
-        return "当前筛选：\(Fmt.monthDay(selectedDate))"
+        return Copy.filteredTo(Fmt.monthDay(selectedDate))
     }
 
     func clearDrilldown() {

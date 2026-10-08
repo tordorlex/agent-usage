@@ -4,7 +4,7 @@ import Foundation
 ///
 /// Two layouts are supported:
 ///
-/// * **Bundled** (`JusageMac.app`): `Contents/Resources/JusageEngine/` holds
+/// * **Bundled** (`Meter.app`): `Contents/Resources/JusageEngine/` holds
 ///   `index.js` plus a `node` binary, so the app is self-contained.
 /// * **Development**: the script is read straight out of the repository
 ///   (`packages/engine/dist/index.js`), and Node is whatever the developer has
@@ -21,25 +21,22 @@ struct EngineLocation {
     static let scriptOverrideEnv = "JUSAGE_ENGINE_SCRIPT"
     static let dataDirEnv = "JUSAGE_DATA_DIR"
 
-    enum LocatorError: LocalizedError {
+    enum LocatorError: LocalizedError, Equatable {
         case nodeNotFound
         case scriptNotFound([String])
 
-        var errorDescription: String? {
+        /// Localized on read: the failure can be produced before any view
+        /// exists, and the banner it feeds must follow a language change.
+        var message: String {
             switch self {
             case .nodeNotFound:
-                return """
-                未找到 Node.js 运行时。\
-                请安装 Node 20+（brew install node），或设置环境变量 \(nodeOverrideEnv) 指向 node 可执行文件。
-                """
+                return Copy.locatorNodeMissing(nodeOverrideEnv)
             case .scriptNotFound(let tried):
-                return """
-                未找到统计引擎脚本 packages/engine/dist/index.js。\
-                请先构建：pnpm --filter @juejin-opensource/jusage-engine build
-                已尝试：\(tried.joined(separator: "、"))
-                """
+                return Copy.locatorScriptMissing(tried)
             }
         }
+
+        var errorDescription: String? { message }
     }
 
     static func resolve() throws -> EngineLocation {
@@ -104,7 +101,7 @@ struct EngineLocation {
         throw LocatorError.scriptNotFound(tried)
     }
 
-    /// Walk up from the executable (`.build/debug/JusageMac`) to the repo root,
+    /// Walk up from the executable (`.build/debug/Meter`) to the repo root,
     /// defined as the directory containing `packages/engine/package.json`.
     private static func searchRoots(from env: [String: String]) -> [URL] {
         var roots: [URL] = []

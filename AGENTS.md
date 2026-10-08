@@ -10,7 +10,7 @@
 | `packages/engine` | 无界面 Node 边车：把 core 运行时以 localhost HTTP + stdout 握手给原生宿主 |
 | `packages/cli` | `jusage`：HTTP + 托管 dashboard dist |
 | `packages/dashboard` | CLI 内置面板与线上 `/aiusage/` 同一份 |
-| `apps/macos` | **原生 SwiftUI 菜单栏应用**（macOS 26 + Liquid Glass），取代 Electron；只做用量统计 |
+| `apps/macos` | **Meter — 原生 SwiftUI 菜单栏应用**（macOS 26 + Liquid Glass），取代 Electron；只做用量统计 |
 | `apps/desktop` | Electron（待移除）：`src/renderer` 与 dashboard **同构但独立** |
 
 改 `packages/dashboard/src` 的共享 UI / 数据层时，核对该路径在 `apps/desktop/src/renderer` 是否有同名副本，有则一起改完。
@@ -33,10 +33,13 @@ PR / 分支命名 / Web 对照线上：[CONTRIBUTING.md](CONTRIBUTING.md)。Desk
   宽度内的内容必须自适应可用宽度。整数 x 轴的 `BarMark` 必须显式给 `width:`，否则 30/90 桶时柱子重叠。
 - Swift Charts：整数 x 轴的标签要读 `value.as(Double.self)`（`Int` 永远失败，X 轴会全空）；
   `BarMark` 要给 `width:`；绘图区矮时内置图例会被丢弃，多序列图改用自绘 `ChartLegendRow`。
+- 界面中英双语（`apps/macos/Sources/Meter/Localization/Localization.swift`）：文案一律写进
+  `Copy`，默认跟随 macOS 语言、设置里可固定；状态不要存成已本地化的字符串（存结构化 `Failure`，
+  读的时候再拼），AppKit 建的菜单 / 窗口标题要显式重写。自检 `apps/macos/scripts/check-localization.sh`。
 - 无窗口应用没法截图：用真实 `NSWindow` + 视图树 frame 查布局越界，用
   `apps/macos/scripts/ocr.swift`（Vision OCR）读回文字与坐标查内容。
   `ImageRenderer` 离屏渲染画不出 Liquid Glass（得到全透明图），`cacheDisplay` 也抓不到玻璃层。
-- 构建：`pnpm build:macos:app` → `apps/macos/dist/JusageMac.app`（内嵌 node + 引擎）。
+- 构建：`pnpm build:macos:app` → `apps/macos/dist/Meter.app`（内嵌 node + 引擎）。
   需要 macOS 26 / Xcode 26。
 
 ## 开发指南

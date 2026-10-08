@@ -16,6 +16,19 @@ final class StatusItemController: NSObject {
     private let menu = NSMenu()
     private let windows = UtilityWindows()
 
+    /// The context menu is built with AppKit, so its titles have to be assigned
+    /// explicitly — and because they are localized, `menu.item(withTitle:)`
+    /// lookups would break the moment the language changes. Keep references and
+    /// rewrite every title in `menuNeedsUpdate()` instead.
+    private let showPanelItem = NSMenuItem()
+    private let syncItem = NSMenuItem()
+    private let themeItem = NSMenuItem(title: "", action: nil, keyEquivalent: "")
+    private let themeMenu = NSMenu()
+    private var themeItems: [(mode: AppPreferences.ThemeMode, item: NSMenuItem)] = []
+    private let settingsItem = NSMenuItem()
+    private let aboutItem = NSMenuItem()
+    private let quitItem = NSMenuItem()
+
     private var titleTask: Task<Void, Never>?
 
     init(environment: AppEnvironment) {
@@ -27,6 +40,7 @@ final class StatusItemController: NSObject {
         configurePopover()
         configureMenu()
         observeTitle()
+        observeLanguage()
         // Keep the menu check marks honest if the mode changes elsewhere.
         menuNeedsUpdate()
     }
@@ -45,10 +59,10 @@ final class StatusItemController: NSObject {
         button.imagePosition = .imageLeading
         button.image = NSImage(
             systemSymbolName: "chart.bar.fill",
-            accessibilityDescription: "用量统计"
+            accessibilityDescription: "Meter"
         )
         button.image?.isTemplate = true
-        button.toolTip = "用量统计"
+        button.toolTip = "Meter"
         applyTitle()
     }
 
@@ -103,29 +117,37 @@ final class StatusItemController: NSObject {
         menu.delegate = self
         menu.autoenablesItems = false
 
-        menu.addItem(menuItem("显示用量面板", #selector(showPanel), key: ""))
-        menu.addItem(menuItem("同步数据", #selector(syncNow), key: "r"))
+        install(showPanelItem, action: #selector(showPanel), key: "")
+        install(syncItem, action: #selector(syncNow), key: "r")
         menu.addItem(.separator())
 
-        let themeItem = NSMenuItem(title: "主题", action: nil, keyEquivalent: "")
-        let themeMenu = NSMenu()
         for mode in AppPreferences.ThemeMode.allCases {
-            let item = menuItem(mode.label, #selector(setTheme(_:)), key: "")
+            let item = menuItem(action: #selector(setTheme(_:)), key: "")
             item.representedObject = mode.rawValue
             themeMenu.addItem(item)
+            themeItems.append((mode, item))
         }
         themeItem.submenu = themeMenu
         menu.addItem(themeItem)
 
         menu.addItem(.separator())
-        menu.addItem(menuItem("设置…", #selector(openSettings), key: ","))
-        menu.addItem(menuItem("关于用量统计", #selector(openAbout), key: ""))
+        install(settingsItem, action: #selector(openSettings), key: ",")
+        install(aboutItem, action: #selector(openAbout), key: "")
         menu.addItem(.separator())
-        menu.addItem(menuItem("退出", #selector(quit), key: "q"))
+        install(quitItem, action: #selector(quit), key: "q")
     }
 
-    private func menuItem(_ title: String, _ action: Selector, key: String) -> NSMenuItem {
-        let item = NSMenuItem(title: title, action: action, keyEquivalent: key)
+    /// Adds an item to the menu and points it at this controller. Titles are
+    /// assigned later by `menuNeedsUpdate()`.
+    private func install(_ item: NSMenuItem, action: Selector, key: String) {
+        item.target = self
+        item.action = action
+        item.keyEquivalent = key
+        menu.addItem(item)
+    }
+
+    private func menuItem(action: Selector, key: String) -> NSMenuItem {
+        let item = NSMenuItem(title: "", action: action, keyEquivalent: key)
         item.target = self
         return item
     }
@@ -140,16 +162,37 @@ final class StatusItemController: NSObject {
         statusItem.menu = nil
     }
 
-    /// Reflects the current theme and sync state in the menu before it opens.
+    /// Rewrites every title (the language may have changed), then reflects the
+    /// current theme and sync state. Runs before the menu opens and whenever the
+    /// language changes.
     private func menuNeedsUpdate() {
-        menu.item(withTitle: "显示用量面板")?.isHidden = popover.isShown
-        menu.item(withTitle: "同步数据")?.isEnabled = !environment.store.isSyncing
+        showPanelItem.title = Copy.panelShow
+        syncItem.title = Copy.syncNow
+        themeItem.title = Copy.theme
+        settingsItem.title = Copy.settingsEllipsis
+        aboutItem.title = Copy.aboutMeter
+        quitItem.title = Copy.quit
+        for entry in themeItems { entry.item.title = entry.mode.label }
 
-        if let themeItem = menu.item(withTitle: "主题"), let submenu = themeItem.submenu {
-            for item in submenu.items {
-                let mode = (item.representedObject as? String)
-                    .flatMap(AppPreferences.ThemeMode.init(rawValue:))
-                item.state = mode == environment.prefs.themeMode ? .on : .off
+        showPanelItem.isHidden = popover.isShown
+        syncItem.isEnabled = !environment.store.isSyncing
+        for entry in themeItems {
+            entry.item.state = entry.mode == environment.prefs.themeMode ? .on : .off
+        }
+    }
+
+    /// Menu and window titles are AppKit strings, so unlike the SwiftUI panel
+    /// they do not re-render on their own: re-arm an observation on the active
+    /// language to rewrite them in place.
+    private func observeLanguage() {
+        withObservationTracking {
+            _ = Localization.shared.language
+        } onChange: { [weak self] in
+            Task { @MainActor in
+                guard let self else { return }
+                self.menuNeedsUpdate()
+                self.windows.refreshTitles()
+                self.observeLanguage()
             }
         }
     }
@@ -242,12 +285,12 @@ final class UtilityWindows {
                 .environment(environment.engine)
                 .preferredColorScheme(environment.prefs.themeMode.colorScheme)
             settingsWindow = makeWindow(
-                title: "设置",
+                title: Copy.settings,
                 root: root,
                 size: NSSize(width: 660, height: 480)
             )
         }
-        present(settingsWindow)
+        present(settingsWindow, title: Copy.settings)
     }
 
     func showAbout(environment: AppEnvironment) {
@@ -256,12 +299,19 @@ final class UtilityWindows {
                 .environment(environment)
                 .preferredColorScheme(environment.prefs.themeMode.colorScheme)
             aboutWindow = makeWindow(
-                title: "关于",
+                title: Copy.aboutMeter,
                 root: root,
                 size: NSSize(width: 460, height: 520)
             )
         }
-        present(aboutWindow)
+        present(aboutWindow, title: Copy.aboutMeter)
+    }
+
+    /// The hosted SwiftUI content follows the language on its own; the AppKit
+    /// window titles do not, so they are rewritten from `StatusItemController`.
+    func refreshTitles() {
+        settingsWindow?.title = Copy.settings
+        aboutWindow?.title = Copy.aboutMeter
     }
 
     private func makeWindow(title: String, root: some View, size: NSSize) -> NSWindow {
@@ -275,8 +325,9 @@ final class UtilityWindows {
         return window
     }
 
-    private func present(_ window: NSWindow?) {
+    private func present(_ window: NSWindow?, title: String) {
         guard let window else { return }
+        window.title = title
         NSApp.activate(ignoringOtherApps: true)
         window.makeKeyAndOrderFront(nil)
     }

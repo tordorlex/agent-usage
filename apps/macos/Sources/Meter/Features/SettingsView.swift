@@ -9,11 +9,17 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
 
     private enum Tab: String, CaseIterable, Identifiable {
-        case app = "应用"
-        case device = "设备信息"
-        case about = "关于"
+        case app, device, about
 
         var id: String { rawValue }
+
+        var title: String {
+            switch self {
+            case .app: return Copy.tabApp
+            case .device: return Copy.tabDevice
+            case .about: return Copy.tabAbout
+            }
+        }
     }
 
     @State private var tab: Tab = .app
@@ -21,10 +27,10 @@ struct SettingsView: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack {
-                Text("设置")
+                Text(Copy.settings)
                     .font(AppFont.text(15, weight: .semibold))
                 Spacer()
-                Button("关闭设置") { dismiss() }
+                Button(Copy.closeSettings) { dismiss() }
                     .font(AppFont.text(12))
                     .buttonStyle(.borderless)
             }
@@ -39,7 +45,7 @@ struct SettingsView: View {
                         Button {
                             tab = item
                         } label: {
-                            Text(item.rawValue)
+                            Text(item.title)
                                 .font(AppFont.text(12))
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .padding(.horizontal, 10)
@@ -82,11 +88,11 @@ struct SettingsView: View {
 
         GroupBox {
             VStack(alignment: .leading, spacing: 12) {
-                Toggle("在菜单栏显示今日用量", isOn: $prefs.showTrayUsage)
+                Toggle(Copy.showTrayUsage, isOn: $prefs.showTrayUsage)
                     .font(AppFont.text(12))
 
                 HStack {
-                    Text("显示方式")
+                    Text(Copy.displayMode)
                         .font(AppFont.text(12))
                     Spacer()
                     Picker("", selection: $prefs.trayUsageMode) {
@@ -100,7 +106,7 @@ struct SettingsView: View {
                 }
 
                 HStack {
-                    Text("默认时间范围")
+                    Text(Copy.defaultRange)
                         .font(AppFont.text(12))
                     Spacer()
                     Picker("", selection: Binding(
@@ -116,7 +122,7 @@ struct SettingsView: View {
                 }
 
                 HStack {
-                    Text("主题")
+                    Text(Copy.theme)
                         .font(AppFont.text(12))
                     Spacer()
                     Picker("", selection: $prefs.themeMode) {
@@ -127,18 +133,34 @@ struct SettingsView: View {
                     .labelsHidden()
                     .frame(width: 150)
                 }
+
+                // The list shows each language in its own script and `.system`
+                // follows the macOS language, so both audiences can get back to
+                // their own wording without reading the other one.
+                HStack {
+                    Text(Copy.language)
+                        .font(AppFont.text(12))
+                    Spacer()
+                    Picker("", selection: $prefs.language) {
+                        ForEach(LanguagePreference.allCases) { preference in
+                            Text(preference.label).tag(preference)
+                        }
+                    }
+                    .labelsHidden()
+                    .frame(width: 150)
+                }
             }
             .padding(6)
         } label: {
-            Text("界面与菜单栏").font(AppFont.text(12, weight: .semibold))
+            Text(Copy.interfaceAndMenuBar).font(AppFont.text(12, weight: .semibold))
         }
 
         GroupBox {
             VStack(alignment: .leading, spacing: 10) {
-                Text("统计引擎")
+                Text(Copy.statisticsEngine)
                     .font(AppFont.text(12, weight: .semibold))
 
-                Toggle("接管本地同步（结束其他采集进程）", isOn: Binding(
+                Toggle(Copy.takeOwnership, isOn: Binding(
                     get: { prefs.takesOwnership },
                     set: { newValue in
                         prefs.takesOwnership = newValue
@@ -147,7 +169,7 @@ struct SettingsView: View {
                 ))
                 .font(AppFont.text(12))
 
-                Text("关闭时，若 CLI 或旧版桌面端正在采集，本应用只读取同一份 ~/.ai-usage 数据，不抢占采集权。开启后会结束对方的采集进程并独自接管。")
+                Text(Copy.takeOwnershipNote)
                     .font(AppFont.text(10))
                     .foregroundStyle(Theme.muted)
                     .fixedSize(horizontal: false, vertical: true)
@@ -157,11 +179,11 @@ struct SettingsView: View {
                         .font(AppFont.text(11))
                         .foregroundStyle(Theme.muted)
                     Spacer()
-                    Button("重新启动引擎") { env.restartEngine() }
+                    Button(Copy.restartEngine) { env.restartEngine() }
                         .font(AppFont.text(11))
                 }
-                if case .failed(let reason) = env.engine.phase {
-                    Text(reason)
+                if case .failed(let failure) = env.engine.phase {
+                    Text(failure.message)
                         .font(AppFont.mono(10))
                         .foregroundStyle(Theme.negative)
                         .textSelection(.enabled)
@@ -179,15 +201,15 @@ struct SettingsView: View {
     private var deviceTab: some View {
         GroupBox {
             VStack(alignment: .leading, spacing: 10) {
-                InfoRow(label: "数据目录", value: env.dataDir.path)
-                InfoRow(label: "统计起点", value: store.syncStatus?.statsSince ?? "未知")
-                InfoRow(label: "上次同步", value: store.lastSyncCaption)
-                InfoRow(label: "引擎版本", value: env.engineVersion.isEmpty ? "未知" : env.engineVersion)
-                InfoRow(label: "已采集天数", value: "\(store.heatmapDays.count) 天")
-                InfoRow(label: "工具数量", value: "\(store.availableSources.count) 个")
+                InfoRow(label: Copy.dataDirectory, value: env.dataDir.path)
+                InfoRow(label: Copy.statsSince, value: store.syncStatus?.statsSince ?? Copy.unknown)
+                InfoRow(label: Copy.lastSyncLabel, value: store.lastSyncCaption)
+                InfoRow(label: Copy.engineVersion, value: engineVersionText)
+                InfoRow(label: Copy.daysCollected, value: Copy.daysValue(store.heatmapDays.count))
+                InfoRow(label: Copy.toolCount, value: Copy.countValue(store.availableSources.count))
 
                 HStack {
-                    Button("立即同步") {
+                    Button(Copy.syncNow) {
                         Task { await store.triggerSync() }
                     }
                     .font(AppFont.text(11))
@@ -200,10 +222,10 @@ struct SettingsView: View {
             .padding(6)
             .frame(maxWidth: .infinity, alignment: .leading)
         } label: {
-            Text("本地采集").font(AppFont.text(12, weight: .semibold))
+            Text(Copy.localCollection).font(AppFont.text(12, weight: .semibold))
         }
 
-        Text("所有用量数据都保存在本机，不会上传。")
+        Text(Copy.localOnlyNote)
             .font(AppFont.text(11))
             .foregroundStyle(Theme.muted)
     }
@@ -214,40 +236,25 @@ struct SettingsView: View {
     private var aboutTab: some View {
         GroupBox {
             VStack(alignment: .leading, spacing: 8) {
-                InfoRow(label: "版本信息", value: "JusageMac \(appVersion)")
-                InfoRow(label: "统计引擎", value: env.engineVersion.isEmpty ? "未知" : env.engineVersion)
-                InfoRow(label: "系统", value: ProcessInfo.processInfo.operatingSystemVersionString)
+                InfoRow(label: Copy.versionInfo, value: "Meter \(appVersion)")
+                InfoRow(label: Copy.statisticsEngine, value: engineVersionText)
+                InfoRow(label: Copy.system, value: ProcessInfo.processInfo.operatingSystemVersionString)
             }
             .padding(6)
             .frame(maxWidth: .infinity, alignment: .leading)
         } label: {
-            Text("版本信息").font(AppFont.text(12, weight: .semibold))
+            Text(Copy.versionInfo).font(AppFont.text(12, weight: .semibold))
         }
 
-        GroupBox {
-            VStack(alignment: .leading, spacing: 6) {
-                Text("支持的工具")
-                    .font(AppFont.text(12, weight: .semibold))
-                Text("同一系列的多端形态用括号标出。")
-                    .font(AppFont.text(10))
-                    .foregroundStyle(Theme.muted)
-                ForEach(SourceCatalog.allTools, id: \.key) { tool in
-                    HStack(spacing: 6) {
-                        Circle()
-                            .fill(SourceCatalog.color(tool.key))
-                            .frame(width: 6, height: 6)
-                        Text(tool.label)
-                            .font(AppFont.text(11))
-                    }
-                }
-            }
-            .padding(6)
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
+        SupportedToolsList()
     }
 
     private var appVersion: String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.1.0"
+    }
+
+    private var engineVersionText: String {
+        env.engineVersion.isEmpty ? Copy.unknown : env.engineVersion
     }
 }
 
@@ -259,10 +266,10 @@ struct AboutView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
-                Text("关于")
+                Text(Copy.about)
                     .font(AppFont.text(15, weight: .semibold))
                 Spacer()
-                Button("关闭关于") { dismiss() }
+                Button(Copy.closeAbout) { dismiss() }
                     .font(AppFont.text(12))
                     .buttonStyle(.borderless)
             }
@@ -274,29 +281,17 @@ struct AboutView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     VStack(alignment: .leading, spacing: 6) {
-                        Text("版本信息")
+                        Text(Copy.versionInfo)
                             .font(AppFont.text(12, weight: .semibold))
-                        InfoRow(label: "客户端", value: appVersion)
-                        InfoRow(label: "统计引擎", value: env.engineVersion.isEmpty ? "未知" : env.engineVersion)
-                        InfoRow(label: "数据目录", value: env.dataDir.path)
+                        InfoRow(label: Copy.client, value: appVersion)
+                        InfoRow(
+                            label: Copy.statisticsEngine,
+                            value: env.engineVersion.isEmpty ? Copy.unknown : env.engineVersion
+                        )
+                        InfoRow(label: Copy.dataDirectory, value: env.dataDir.path)
                     }
 
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("支持的工具")
-                            .font(AppFont.text(12, weight: .semibold))
-                        Text("同一系列的多端形态用括号标出。")
-                            .font(AppFont.text(10))
-                            .foregroundStyle(Theme.muted)
-                        ForEach(SourceCatalog.allTools, id: \.key) { tool in
-                            HStack(spacing: 6) {
-                                Circle()
-                                    .fill(SourceCatalog.color(tool.key))
-                                    .frame(width: 6, height: 6)
-                                Text(tool.label)
-                                    .font(AppFont.text(11))
-                            }
-                        }
-                    }
+                    SupportedToolsList()
                 }
                 .padding(20)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -310,16 +305,44 @@ struct AboutView: View {
     }
 }
 
+/// `支持的工具` — every catalogued channel, in `SourceCatalog` order.
+private struct SupportedToolsList: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(Copy.supportedTools)
+                .font(AppFont.text(12, weight: .semibold))
+            Text(Copy.supportedToolsNote)
+                .font(AppFont.text(10))
+                .foregroundStyle(Theme.muted)
+            ForEach(SourceCatalog.allTools, id: \.key) { tool in
+                HStack(spacing: 6) {
+                    Circle()
+                        .fill(SourceCatalog.color(tool.key))
+                        .frame(width: 6, height: 6)
+                    Text(tool.label)
+                        .font(AppFont.text(11))
+                }
+            }
+        }
+        .padding(6)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
 struct InfoRow: View {
     let label: String
     let value: String
+
+    /// English labels are wider than their Chinese counterparts, so the column
+    /// grows rather than truncating "Statistics engine" into "Statistics e…".
+    private var labelWidth: CGFloat { L10n.isEnglish ? 104 : 76 }
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 10) {
             Text(label)
                 .font(AppFont.text(11))
                 .foregroundStyle(Theme.muted)
-                .frame(width: 76, alignment: .leading)
+                .frame(width: labelWidth, alignment: .leading)
             Text(value)
                 .font(AppFont.mono(11))
                 .foregroundStyle(Theme.foreground)

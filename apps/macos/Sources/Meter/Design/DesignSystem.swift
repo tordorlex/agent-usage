@@ -322,31 +322,39 @@ enum Fmt {
         return "\(arrow) \(String(format: "%.1f%%", Swift.abs(value)))"
     }
 
-    /// `M月d日`
+    /// `M月d日` / `Oct 7`; the formatting itself lives in `Copy` so that both
+    /// languages stay in one place.
     static func monthDay(_ isoDate: String) -> String {
         let parts = isoDate.split(separator: "-")
         guard parts.count == 3, let month = Int(parts[1]), let day = Int(parts[2]) else {
             return isoDate
         }
-        return "\(month)月\(day)日"
+        return Copy.monthDay(month: month, day: day)
     }
 
     /// Relative "最近同步" caption.
     static func relativeSync(_ iso: String?) -> String {
-        guard let iso, !iso.isEmpty else { return "从未" }
+        guard let iso, !iso.isEmpty else { return Copy.never }
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         let date = formatter.date(from: iso) ?? ISO8601DateFormatter().date(from: iso)
-        guard let date else { return "未知" }
+        guard let date else { return Copy.unknown }
 
         let elapsed = Date().timeIntervalSince(date)
-        if elapsed < 60 { return "刚刚" }
-        if elapsed < 3600 { return "\(Int(elapsed / 60)) 分钟前" }
-        if elapsed < 86_400 { return "\(Int(elapsed / 3600)) 小时前" }
-        let output = DateFormatter()
-        output.locale = Locale(identifier: "zh_CN")
-        output.dateFormat = "M/d HH:mm"
-        return output.string(from: date)
+        if elapsed < 60 { return Copy.justNow }
+        if elapsed < 3600 { return Copy.minutesAgo(Int(elapsed / 60)) }
+        if elapsed < 86_400 { return Copy.hoursAgo(Int(elapsed / 3600)) }
+
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .current
+        let parts = calendar.dateComponents([.month, .day, .hour, .minute], from: date)
+        let month = parts.month ?? 1
+        let day = parts.day ?? 1
+        let clock = String(format: "%02d:%02d", parts.hour ?? 0, parts.minute ?? 0)
+        if L10n.isEnglish {
+            return "\(Copy.monthAbbreviation(month)) \(day), \(clock)"
+        }
+        return "\(month)/\(day) \(clock)"
     }
 }
 
@@ -449,7 +457,7 @@ struct ChartLegendRow: View {
 
 /// Empty-state copy used across every card.
 struct CardEmptyState: View {
-    var message: String = "暂无数据"
+    var message: String = Copy.emptyNoData
 
     var body: some View {
         Text(message)

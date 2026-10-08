@@ -37,7 +37,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 /// no main window. `Settings` is the cheapest scene that keeps the `App` alive
 /// without presenting anything at launch.
 @main
-struct JusageMacApp: App {
+struct MeterApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
 
     var body: some Scene {

@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 #
-# Assembles JusageMac.app: the SwiftUI client plus a self-contained copy of the
+# Assembles Meter.app: the SwiftUI client plus a self-contained copy of the
 # Node statistics engine, so the bundle runs with nothing installed.
 #
 # Layout produced:
-#   JusageMac.app/Contents/MacOS/JusageMac          the SwiftUI executable
-#   JusageMac.app/Contents/Resources/JusageEngine/  deployed engine
+#   Meter.app/Contents/MacOS/Meter                the SwiftUI executable
+#   Meter.app/Contents/Resources/JusageEngine/    deployed engine
 #     ├── dist/index.js                             entry the locator spawns
 #     ├── node_modules/                             hono / fzstd / core, resolved
 #     └── node                                      bundled Node runtime
-#   JusageMac.app/Contents/Resources/AppIcon.icns
+#   Meter.app/Contents/Resources/AppIcon.icns
 #
 # Usage:
 #   apps/macos/scripts/bundle.sh [--skip-node] [--configuration release|debug]
@@ -33,8 +33,8 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-APP_NAME="JusageMac"
-DISPLAY_NAME="用量统计"
+APP_NAME="Meter"
+DISPLAY_NAME="Meter"
 BUNDLE_ID="com.juejin.jusage.mac"
 
 # The repo root has no version field, so read the published product version and
@@ -154,6 +154,15 @@ cat > "$CONTENTS/Info.plist" <<PLIST
   <key>CFBundleVersion</key><string>$VERSION</string>
   <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>LSMinimumSystemVersion</key><string>26.0</string>
+  <!-- Languages the app renders in. Declaring them is what makes macOS offer
+       the per-app language picker, and that choice lands in
+       Locale.preferredLanguages — which is exactly where Meter reads it. -->
+  <key>CFBundleDevelopmentRegion</key><string>en</string>
+  <key>CFBundleLocalizations</key>
+  <array>
+    <string>en</string>
+    <string>zh-Hans</string>
+  </array>
   <!-- Menu-bar-only app: accessory activation policy, no Dock icon. -->
   <key>LSUIElement</key><true/>
   <key>NSHighResolutionCapable</key><true/>

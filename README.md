@@ -1,136 +1,172 @@
 <p align="center">
-  <img src="./assets/icon.png" alt="Juejin Usage logo" width="200">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="./assets/logo-dark.png">
+    <img src="./assets/logo-light.png" alt="Meter" width="140">
+  </picture>
+</p>
+
+<h1 align="center">Meter</h1>
+
+<p align="center">
+  <b>常驻 macOS 菜单栏的 AI 编码用量仪表盘</b><br>
+  原生 SwiftUI（macOS 26 · Liquid Glass）· 本地解析日志 · 不上报任何数据
 </p>
 
 <p align="center">
-  Token 用量明细追踪工具，本地记录、云端同步，<br>还有线上排行榜看看谁用得最多。
+  <img src="https://img.shields.io/badge/macOS-26%2B-000000?style=flat-square&logo=apple&logoColor=white" alt="macOS 26+">
+  <img src="https://img.shields.io/badge/SwiftUI-native-F05138?style=flat-square&logo=swift&logoColor=white" alt="SwiftUI">
+  <img src="https://img.shields.io/badge/version-0.1.13-2ea44f?style=flat-square" alt="0.1.13">
+  <img src="https://img.shields.io/badge/license-MIT-3b82f6?style=flat-square" alt="MIT">
 </p>
 
 <p align="center">
-  <sub>本仓库是 <a href="https://github.com/juejin-cn/juejin-usage">juejin-cn/juejin-usage</a> 的衍生项目，向原项目与上游贡献者致谢 · <a href="#-原项目与致谢">原项目与致谢</a></sub>
+  <a href="https://github.com/tordorlex/agent-usage/releases">下载安装包</a> ·
+  <a href="#-界面">界面截图</a> ·
+  <a href="#-功能">功能</a> ·
+  <a href="#-快速开始">快速开始</a> ·
+  <a href="./FAQ.md">常见问题</a> ·
+  <a href="#-与上游的关系">与上游的关系</a> ·
+  <a href="./README.en.md">English</a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/juejin-cn/juejin-usage">
-    <img src="https://img.shields.io/github/stars/juejin-cn/juejin-usage?style=flat-square" alt="stars">
-  </a>
-  <a href="https://github.com/juejin-cn/juejin-usage/issues">
-    <img src="https://img.shields.io/github/issues/juejin-cn/juejin-usage?style=flat-square" alt="issues">
-  </a>
-  <a href="https://github.com/juejin-cn/juejin-usage/releases">
-    <img src="https://img.shields.io/github/downloads/juejin-cn/juejin-usage/total?style=flat-square" alt="downloads">
-  </a>
-  <a href="https://github.com/juejin-cn/juejin-usage/releases/latest">
-    <img src="https://img.shields.io/github/v/release/juejin-cn/juejin-usage?include_prereleases&style=flat-square" alt="release">
-  </a>
-  <a href="https://github.com/juejin-cn/juejin-usage/commits/main">
-    <img src="https://img.shields.io/github/last-commit/juejin-cn/juejin-usage?style=flat-square" alt="last-commit">
-  </a>
+  <img src="./assets/screenshots/panel-overview.png" alt="Meter 面板：指标卡与 52 周活动热力图" width="440"><br>
+  <sub>用量面板：四张指标卡 + 52 周活动热力图，<b>点某一天即可把整个看板筛选到那天</b></sub>
 </p>
+
+## 🎯 Meter 是什么
+
+Meter 是一个**跑在 macOS 菜单栏上的 AI 编码用量仪表盘**。它读取本机各种 Agent / 编码工具留下的日志
+（Claude Code、Codex、Cursor、Gemini CLI……共 37 种），按统一口径算出 Token 用量与预估费用，
+再用原生 SwiftUI 面板展示出来——不注册账号、不登录、不上传。
+
+| | |
+|---|---|
+| **原生客户端** | SwiftUI + Liquid Glass，不是套壳网页；无主窗口，界面就是菜单栏图标弹出的面板 |
+| **本地优先** | 所有解析与聚合都在这台机器上完成，数据落在 `~/.ai-usage` |
+| **不上报** | 引擎内云端上报被强制关闭（`juejin.enabled = false`），配置接口也无法重新打开 |
+| **口径统一** | 与同仓库的 CLI / Electron 端共用同一份数据、同一套聚合口径，两版数字能对上 |
+| **常驻可见** | 菜单栏直接显示今日用量（`1.2M Token · $3.40`，三种显示方式可切换） |
+| **双语** | 界面中英双语，默认跟随 macOS 语言，也可在设置里固定 |
+
+## 🖼️ 界面
+
+面板从上到下依次是：用量总览（四张指标卡 + 52 周活动热力图，见顶部大图）、趋势图表、
+项目 / 工具 / 模型分布，最后是同步状态栏。下面按顺序展示。
+
+### 趋势图表
 
 <p align="center">
-  <a href="https://github.com/juejin-cn/juejin-usage/releases">下载安装包</a>
-  ·
-  <a href="https://juejin.cn/aiusage/rank">排行榜</a>
-  ·
-  <a href="./FAQ.md">常见问题</a>
-  ·
-  <a href="#-用户隐私协议">用户隐私协议</a>
-  ·
-  <a href="https://juejin.cn">稀土掘金</a>
+  <img src="./assets/screenshots/panel-trends.png" alt="Token 用量趋势与每日 Token / 费用趋势" width="430">
 </p>
 
-## 🙏 原项目与致谢
+用 Swift Charts 绘制：**总 Token 用量趋势**（可在「全部 / 详细」之间切换）与**每日 Token 与费用趋势**，
+纵轴自动按 T / B / M / K 取单位，切换时间范围即时重算。
 
-本仓库 [agent-usage](https://github.com/tordorlex/agent-usage) 是
-**[稀土掘金 · juejin-cn/juejin-usage](https://github.com/juejin-cn/juejin-usage)** 的衍生项目。
-本项目几乎全部基础能力都来自原项目，本仓库只是在其之上补了一个原生 macOS 客户端：
+### 项目 / 工具 / 模型分布
 
-| 来自原项目（上游） | 本仓库新增 |
-| --- | --- |
-| `packages/core`：各家 Agent 日志解析、用量队列、同步与定价 | `apps/macos`：原生 SwiftUI 菜单栏客户端（macOS 26 + Liquid Glass） |
-| `packages/cli`（`jusage`）、`packages/dashboard` 面板、Electron 桌面端 | `packages/engine`：无界面 Node 边车，用 localhost HTTP + stdout 握手把 core 运行时交给原生宿主 |
-| `/functions/tud-*` 本地 API 契约、`~/.ai-usage` 数据目录与聚合口径 | 原生端的菜单栏常驻、弹出面板、设置 / 关于窗口 |
+<p align="center">
+  <img src="./assets/screenshots/panel-breakdown.png" alt="项目分布、工具分布与模型分布" width="430">
+</p>
 
-新增的原生端只做用量统计：不含掘金登录、上报、排行榜、分享、校准，也没有桌面宠物、自动更新与开机自启；
-引擎里 `juejin.enabled` 被强制为 `false`，**不会向任何服务器上报数据**。它仍与上游共用同一份
-`~/.ai-usage` 与同一套契约，因此两边的统计口径一致。
+三个维度看用量去向：**项目分布**（按工作目录，仅本地展示）、**工具分布**、**模型分布**；
+堆叠条与环形图都能在 Token / 费用两种口径间切换，环形图还能逐项隐藏。
 
-**由衷感谢** [juejin-cn](https://github.com/juejin-cn) 团队与
-[上游全体贡献者](https://github.com/juejin-cn/juejin-usage/graphs/contributors)：
-没有原项目就没有这个仓库。上游采用 MIT 许可证（Copyright (c) 2026 juejin-cn），本仓库沿用同一许可证，
-见 [LICENSE](./LICENSE)。
+### 设置与关于
 
-原项目相关链接：[上游仓库](https://github.com/juejin-cn/juejin-usage) ·
-[Releases](https://github.com/juejin-cn/juejin-usage/releases) ·
-[Issues](https://github.com/juejin-cn/juejin-usage/issues) ·
-[贡献者](https://github.com/juejin-cn/juejin-usage/graphs/contributors)
+<table>
+  <tr>
+    <td align="center"><img src="./assets/screenshots/settings-app.png" alt="设置 · 应用" width="360"></td>
+    <td align="center"><img src="./assets/screenshots/settings-device.png" alt="设置 · 设备信息" width="360"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>设置 · 菜单栏显示方式、默认时间范围、主题、统计引擎</sub></td>
+    <td align="center"><sub>设置 · 数据目录、统计起点、上次同步、引擎状态</sub></td>
+  </tr>
+</table>
 
-## 🖥️ 客户端使用
+<table>
+  <tr>
+    <td align="center"><img src="./assets/screenshots/about.png" alt="关于 Meter" width="330"></td>
+    <td align="center"><img src="./assets/screenshots/menu.png" alt="菜单栏右键菜单" width="170"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>关于：客户端版本、统计引擎、支持的工具</sub></td>
+    <td align="center"><sub>右键菜单：同步 / 主题 / 设置 / 退出</sub></td>
+  </tr>
+</table>
 
-> 📌 本仓库在原项目之上另做了**原生 macOS 菜单栏客户端**：源码在 [`apps/macos`](./apps/macos/README.md)，
-> 构建执行 `pnpm build:macos:app`（.app）或 `pnpm build:macos:dmg`（.dmg）。
-> 它只做用量统计，**不含**掘金登录 / 排行榜 / 桌面宠物等上游功能，也不上报数据。
-> 下面这一节描述的是原项目的 Electron 桌面端，本仓库仍包含其源码。
+## ✨ 功能
 
-Juejin Usage 提供 macOS / Windows 桌面客户端，安装即用，无需额外配置。
+| 能力 | 说明 |
+|---|---|
+| 用量概览 | 预估费用、总 Token、输入 / 输出 Token，含缓存命中率与相邻两天变化 |
+| 活动热力图 | 52 周每日用量，点击某天把整个看板筛选到那天 |
+| 趋势图 | 总 Token 用量趋势（全部 / 详细）、每日 Token 与费用趋势 |
+| 分布视图 | 工具与模型用量（堆叠条）、项目分布、工具分布 / 模型分布（环形图） |
+| 筛选 | 今天 / 7D / 30D / 90D 时间范围；渠道多选筛选（按占比缩放当日数据） |
+| 菜单栏 | 常驻显示今日用量，可选「Token 和金额 / 仅 Token / 仅金额」，也可只显示图标 |
+| 外观 | 跟随系统 / 浅色 / 深色 |
+| 语言 | 默认跟随 macOS 语言（简体中文 / English），也可在设置里固定 |
+| 采集权 | 默认只读同一份 `~/.ai-usage`；可一键接管，结束其他采集进程 |
+| 数据 | 本地目录、统计起点、上次同步、引擎版本、已采集天数一目了然，可手动触发同步 |
 
-### 下载安装
+明确**不做**的部分（这是它与上游桌面端最大的区别）：
 
-前往 [Releases](https://github.com/juejin-cn/juejin-usage/releases) 页面下载对应系统的安装包（macOS 按芯片选 `.dmg`，Windows 选 `.exe`），安装即用。
+| 不做 | 原因 |
+|---|---|
+| 掘金登录 / 云端上报 / 排行榜 / 分享 | 只做本机统计，引擎里上报通道被强制关闭 |
+| 桌面宠物 | 与用量统计无关 |
+| 自动更新 / 开机自启 | 保持一个「打开就用、不常驻后台服务」的小工具 |
+| 订阅额度卡片 | 需要抓取各厂商凭据，不在本地优先的范围内 |
 
-> 💡 macOS 提示「已损坏」？在终端执行 `sudo xattr -dr com.apple.quarantine` 后把应用拖入终端窗口即可。
+## 🔧 工作原理
 
-### 首次启动
+App 本身不解析任何日志：启动时会拉起一个无界面的 Node 边车（`packages/engine`）作为统计引擎，
+双方通过 stdout 握手拿到端口，之后走 localhost HTTP 调用同一套 `/functions/tud-*` 契约。
 
-1. 打开 **Juejin Usage** 应用
-2. 首次运行会自动尝试注册 Claude / Codex Hook 并同步本地用量
-3. 面板将自动弹出，展示用量趋势、模型分布等数据
-
-如未检测到 Claude / Codex 等 Agent 工具，请确认已安装并使用过至少一次。
-
-### 桌面宠物（可选）
-
-在面板「设置」中点击「桌面宠物」，打开 「显示桌面宠物」，提供 3 个可选的宠物
-
-|            Click             |            Yoyo            |             Hawking              |
-| :--------------------------: | :------------------------: | :------------------------------: |
-| ![Click](./assets/click.png) | ![Yoyo](./assets/yoyo.png) | ![Hawking](./assets/hawking.png) |
-
-在「设置 → 桌面宠物」中，应用会自动从仓库拉取社区宠物列表；未安装的项可点「下载」安装到 `~/.ai-usage/pets/`。也可点击「打开宠物目录」手动放入自定义包。每次打开设置都会扫描本地目录；设置保持打开时，可点击「刷新」重新读取本地并同步远程列表。列表会显示每只宠物的 idle 预览；校验失败的包会标为「无效」且不可选。每只宠物使用独立子目录，结构如下：
-
-```text
-pets/
-└── my-pet/
-    ├── pet.json
-    └── spritesheet.webp
+```
+┌──────────────┐   spawn    ┌──────────────────────┐   HTTP    ┌──────────────────────┐
+│  Meter.app   │──────────▶│ node + packages/engine│──────────▶│ packages/core 运行时  │
+│  (SwiftUI)   │◀──────────│  (stdout 握手 + 端口)  │           │  解析 / 聚合 / 定价    │
+└──────────────┘  handshake └──────────────────────┘           └──────────┬───────────┘
+                                                                          │
+                                                              ~/.ai-usage（与 CLI 共享）
 ```
 
-首版仅支持 v2 动画包：`spritesheet.webp` 必须是 8×11 格、每格 192×208 px 的 1536×2288 WebP 图集。尺寸不对时可在仓库根执行 `node pets/normalize-spritesheet.mjs <图集路径>`（需 ImageMagick、带 libwebp 的 ffmpeg，或 `cwebp` + ffmpeg/`sips`）强制拉伸到目标尺寸——仅用于通过校验；正确动画仍需按格子导出。`pet.json` 示例：
+- 引擎崩溃会自动重启，设置里也能手动「重新启动引擎」；
+- 打包版把 Node 运行时和引擎一起塞进 `.app`（约 123 MB，绝大部分是 Node），用户机器上无需安装任何东西；
+- 数据层零改动，因此 CLI、旧版 Electron 端与 Meter 看到的是同一份数据、同一套口径。
 
-```json
-{
-  "id": "my-pet",
-  "displayName": "我的宠物",
-  "description": "自定义桌面伙伴",
-  "spriteVersionNumber": 2,
-  "spritesheetPath": "spritesheet.webp",
-  "glow": { "primary": "#7c8cff", "accent": "#69d4ff" }
-}
+## 🚀 快速开始
+
+### 下载安装包
+
+前往 [Releases](https://github.com/tordorlex/agent-usage/releases) 下载 `Meter-<版本>.dmg`，拖进「应用程序」即可。
+
+> App 目前是 ad-hoc 签名、未做公证。首次打开若提示「已损坏」，在终端执行
+> `sudo xattr -dr com.apple.quarantine /Applications/Meter.app`，或右键「打开」。
+
+### 从源码构建
+
+需要 **macOS 26 + Xcode 26**（Liquid Glass API 与部署目标都是 26.0）以及 Node.js 20+。
+
+```bash
+pnpm install
+
+# 直接开发运行（在仓库里解析引擎脚本，用 PATH 上的 node）
+pnpm dev:macos
+
+# 打出可双击的 .app（内嵌 Node + 引擎）
+pnpm build:macos:app        # → apps/macos/dist/Meter.app
+
+# 打成可分发的 .dmg
+pnpm build:macos:dmg        # → apps/macos/dist/Meter-<版本>.dmg
 ```
 
-`id` 必须唯一，不能和内置宠物重名；删除或替换素材后重新打开设置，或点击「刷新」即可生效。早期测试版位于应用数据目录的宠物包不会自动迁移，请手动移入 `~/.ai-usage/pets/`。
+### 命令行版（可选，同一份数据）
 
-### 登录掘金（可选）
-
-在面板「设置」中点击「掘金登录」，绑定账号后可：
-
-- 多设备用量合并查看
-- 参与 [AI 使用排行榜](https://juejin.cn/aiusage/rank)
-
-## ⌨️ CLI 使用
-
-需要 Node.js >= 20。macOS / Windows / Linux 安装后后台启动即可打开本地面板：
+仓库里同时保留着上游的命令行与本地面板，和 Meter 共用 `~/.ai-usage`：
 
 ```bash
 npm i -g @juejin-opensource/jusage
@@ -138,71 +174,78 @@ jusage service start
 # 面板: http://127.0.0.1:8452
 ```
 
-国内网络较慢可用 `npm i -g @juejin-opensource/jusage --registry=https://registry.npmmirror.com/`。完整命令、选项与数据说明见 [CLI 使用说明](./CLI.md)。
+完整命令与选项见 [CLI 使用说明](./CLI.md)。
 
-## 🏆 排行榜
+## 🔒 数据与隐私
 
-前往 [掘金 AI 使用排行榜](https://juejin.cn/aiusage/rank) 查看排名。
+Meter 只做本地统计。所有用量明细、模型名、来源渠道与项目路径都只写在本机。
 
-## 🔒 用户隐私协议
+| 项 | 位置 |
+|---|---|
+| 数据目录 | `~/.ai-usage`（可用 `JUSAGE_DATA_DIR` 覆盖） |
+| 日志 | `~/.ai-usage/logs/` |
+| 设备 ID | `~/.config/jusage/device-id` |
+| 定价覆盖层 | `~/.ai-usage/pricing-overlay.json` |
 
-本产品采用本地优先架构，数据默认仅存储于您的设备。
+- 🚫 **不采集、不上传**：对话内容、Prompt 文本、代码内容与 API Key——解析只提取 Token 计数、
+  模型名与用量元数据，而且全部留在本机；
+- 🚫 **不上传**：云端上报在引擎里被强制关闭，`PUT /functions/tud-config` 也无法重新打开；
+- 🌐 **唯一的对外请求**：启动时拉取一次公开的模型定价表
+  （`https://api.juejin.cn/aiusage_api/functions/tud-pricing`，不轮询）。拉不到就用磁盘上一版，
+  再没有就用内置价表，不影响任何统计；
+- 🔁 **采集权**：同一时刻只有一个进程通过 `~/.ai-usage/tud.pid` 做采集。Meter 默认**不抢占**——
+  若 CLI 或 Electron 端正在采集，它只以 observer 身份读取同一份数据；需要独占时在设置里打开「接管本地同步」；
+- 🎛️ **随时清除**：删除 `~/.ai-usage` 目录即可清空全部本地记录。
 
-- 📊 **本地采集**：Token 用量、模型名称、来源渠道（仅本机存储）
-- 🚫 **绝不收集**：对话内容、Prompt 文本、主机名、项目名、API Key
-- ☁️ **云端同步**：需您主动开启，仅上报脱敏的 Token 计数与匿名设备标识
-- 🔐 **存储安全**：本地数据存储在 `~/.ai-usage/`，云端鉴权采用加密 Token
-- 🎛️ **您的控制**：随时可开关云端同步，或删除本地数据目录清除全部记录
+## 🧰 支持的工具
 
-> 除了上报您使用的用量总数外，不会采集您任何信息。
+共 37 种，同一系列的不同形态会归并到一行：
 
-具体内容前往点击查看用户隐私协议: 《[稀土掘金用户隐私协议](#)》
+<sub>Cursor · Claude · Codex · Trae · Qoder · OpenCode · Copilot · Gemini · Antigravity · Kimi ·
+Qwen Code · DeepSeek Harness · Grok Build · ZCode · OpenClaw · AutoClaw · Hermes · Roo Code ·
+Kilo Code · Kilo CLI · Cline · Goose · Zed · Warp · Droid · Kiro · Amp · Mimo · CodeBuddy ·
+WorkBuddy · pi · OMP · Every Code · QwenWork · Command Code · MiniMax Code · WPS Comate</sub>
 
-## 🛠️ 开发注意事项
+## 🧱 仓库结构
 
-需要 Node.js >= 20。克隆后先在仓库根执行 `pnpm install`。
+| 路径 | 职责 |
+|---|---|
+| `apps/macos` | **Meter 本体**：原生 SwiftUI 菜单栏客户端（macOS 26 + Liquid Glass） |
+| `packages/engine` | 无界面 Node 边车：把 core 运行时以 localhost HTTP + stdout 握手交给原生宿主 |
+| `packages/core` | 各家 Agent 日志解析、用量队列、聚合缓存、定价与 local-api 契约 |
+| `packages/cli` | `jusage`：HTTP 服务 + 托管 dashboard |
+| `packages/dashboard` | CLI 内置面板（与线上 `/aiusage/` 同一份） |
+| `apps/desktop` | 上游 Electron 端（待移除） |
 
-如 `pnpm install` 卡在 electron postinstall
+原生端的构建、代码结构与踩坑记录见 [apps/macos/README.md](./apps/macos/README.md)。
 
-Electron 二进制默认从 GitHub Releases 拉取；国内网络可能会超时
+## 🙏 与上游的关系
 
-请在安装前设置环境变量：
+本仓库 [agent-usage](https://github.com/tordorlex/agent-usage) 是
+**[稀土掘金 · juejin-cn/juejin-usage](https://github.com/juejin-cn/juejin-usage)** 的衍生项目：
+日志解析、聚合口径、定价表与 `/functions/tud-*` 契约全部来自原项目，本仓库在其之上补了一个原生 macOS 客户端。
 
-```bash
-# Git Bash / macOS / Linux
-export ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/
-export ELECTRON_BUILDER_BINARIES_MIRROR=https://npmmirror.com/mirrors/electron-builder-binaries/
-pnpm install
-```
+**由衷感谢** [juejin-cn](https://github.com/juejin-cn) 团队与
+[上游全体贡献者](https://github.com/juejin-cn/juejin-usage/graphs/contributors)——没有原项目就没有这个仓库。
+上游采用 MIT 许可证（Copyright (c) 2026 juejin-cn），本仓库沿用同一许可证。
 
-```powershell
-# PowerShell
-$env:ELECTRON_MIRROR="https://npmmirror.com/mirrors/electron/"
-$env:ELECTRON_BUILDER_BINARIES_MIRROR="https://npmmirror.com/mirrors/electron-builder-binaries/"
-pnpm install
-```
+原项目链接：[上游仓库](https://github.com/juejin-cn/juejin-usage) ·
+[Releases](https://github.com/juejin-cn/juejin-usage/releases) ·
+[Issues](https://github.com/juejin-cn/juejin-usage/issues)
 
-## 🤝 贡献指南
+## 🤝 贡献
 
-- 联系Captain:229199157
+分支规范、本地启动与测试方式见 [Contributing Guide](./CONTRIBUTING.md)。提交前请确保 `pnpm build` 与 `pnpm test` 通过。
 
-源码按 Desktop / CLI / Web 三端贡献。分支规范与本地启动见 [Contributing Guide](./CONTRIBUTING.md)。
-
-- [Desktop](./CONTRIBUTING.md#desktop) — Electron 桌面端
-- [CLI](./CONTRIBUTING.md#cli) — 命令行与本地面板
-- [Web](./CONTRIBUTING.md#web) — 线上看板
-
-## Contributing
-
-感谢各位掘友们的贡献支持！🎉 提交 PR 即可上榜
-
-<a href="https://github.com/juejin-cn/juejin-usage/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=juejin-cn/juejin-usage&max=500&columns=20" alt="Juejin Usage contributors" />
-</a>
+- 联系 Captain：229199157
 
 ## 📚 参考项目
 
-- [Token Tracker](https://github.com/xiufengsun/TokenTracker): 自动采集 30 款 AI 编码工具 的 token 用量，用一套漂亮的 Dashboard 看真实成本与趋势。
-- [vibe-usage](https://github.com/vibe-cafe/vibe-usage): Token 使用量统计工具（CLI）
-- [OpenUsage](https://github.com/robinebers/openusage): The Only AI Usage Tracker That's Truly Yours
-- [models.dev](https://models.dev): 模型 Token 计价数据源，内置计价表由此增量同步
+- [Token Tracker](https://github.com/xiufengsun/TokenTracker)：自动采集 30 款 AI 编码工具的 token 用量，用一套漂亮的 Dashboard 看真实成本与趋势
+- [vibe-usage](https://github.com/vibe-cafe/vibe-usage)：Token 使用量统计工具（CLI）
+- [OpenUsage](https://github.com/robinebers/openusage)：The Only AI Usage Tracker That's Truly Yours
+- [models.dev](https://models.dev)：模型 Token 计价数据源，内置计价表由此增量同步
+
+## 📄 许可证
+
+[MIT](./LICENSE)

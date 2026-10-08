@@ -1,4 +1,4 @@
-# JusageMac — 原生 SwiftUI 菜单栏应用
+# Meter — 原生 SwiftUI 菜单栏应用
 
 纯原生 macOS 客户端（SwiftUI + Liquid Glass），取代 `apps/desktop`（Electron）。
 **没有主窗口**：整个界面是菜单栏图标弹出的面板；设置与关于是独立小窗口。
@@ -8,7 +8,7 @@
 
 ```
 ┌──────────────┐   spawn    ┌──────────────────────┐   HTTP    ┌──────────────────────┐
-│ JusageMac.app│──────────▶│ node + packages/engine│──────────▶│ packages/core 运行时  │
+│ Meter.app    │──────────▶│ node + packages/engine│──────────▶│ packages/core 运行时  │
 │  (SwiftUI)   │◀──────────│  (stdout 握手 + 端口)  │           │  解析 / 聚合 / 定价    │
 └──────────────┘  handshake └──────────────────────┘           └──────────┬───────────┘
                                                                           │
@@ -53,8 +53,8 @@ pnpm build:macos:app          # 等价于 apps/macos/scripts/bundle.sh
 pnpm build:macos:dmg          # 等价于 apps/macos/scripts/dmg.sh，--skip-build 可复用已有 .app
 ```
 
-产物：`apps/macos/dist/JusageMac.app`（约 123 MB，其中大部分是内嵌的 node），
-以及 `apps/macos/dist/JusageMac-<version>.dmg`。两者都是 ad-hoc 签名，未做公证（notarization），
+产物：`apps/macos/dist/Meter.app`（约 123 MB，其中大部分是内嵌的 node），
+以及 `apps/macos/dist/Meter-<version>.dmg`。两者都是 ad-hoc 签名，未做公证（notarization），
 首次打开需要右键「打开」或在「系统设置 → 隐私与安全性」里放行。
 
 App 图标取 `apps/macos/resources/icon.png`（无底透明版，1024²），缺失时回退到
@@ -71,7 +71,7 @@ App 图标取 `apps/macos/resources/icon.png`（无底透明版，1024²），�
 |----|----|
 | 数据目录 | `~/.ai-usage`（与 CLI 相同；可用 `JUSAGE_DATA_DIR` 覆盖） |
 | 设备 ID 边车 | `~/.config/jusage/device-id`（可用 `JUSAGE_CONFIG_HOME` 覆盖） |
-| 引擎脚本 | 打包版：`JusageMac.app/Contents/Resources/JusageEngine/dist/index.js`；开发版：`packages/engine/dist/index.js` |
+| 引擎脚本 | 打包版：`Meter.app/Contents/Resources/JusageEngine/dist/index.js`；开发版：`packages/engine/dist/index.js` |
 | node | 打包版：`Contents/Resources/JusageEngine/node`；开发版：`PATH` 上的 node，找不到时回退到登录 shell |
 | 覆盖项 | `JUSAGE_NODE_BIN`、`JUSAGE_ENGINE_SCRIPT`、`JUSAGE_REPO_ROOT` |
 
@@ -93,8 +93,9 @@ App 图标取 `apps/macos/resources/icon.png`（无底透明版，1024²），�
 apps/macos/
 ├── Package.swift                     # macOS 26 / SwiftPM 可执行目标
 ├── scripts/bundle.sh                 # 组装 .app（deploy 引擎 + 内嵌 node + ad-hoc 签名）
-└── Sources/JusageMac/
-    ├── JusageMacApp.swift            # @main：MenuBarExtra + 设置/关于窗口 + AppDelegate
+├── scripts/check-localization.sh     # 门禁：中文字面量只允许出现在 Localization.swift
+└── Sources/Meter/
+    ├── MeterApp.swift                # @main：NSStatusItem + 弹出面板 + 设置/关于窗口 + AppDelegate
     ├── App/AppEnvironment.swift       # 单例环境：引擎 ⇄ store 的接线、退出清理
     ├── Engine/
     │   ├── EngineController.swift     # 拉起/守护 node 边车、解析 stdout 握手、崩溃重启
@@ -104,9 +105,10 @@ apps/macos/
     │   └── LocalAPIClient.swift       # actor：并发请求 + 信封解包
     ├── Store/
     │   ├── UsageStore.swift           # 取数、轮询、范围/渠道筛选、全部派生统计
-    │   ├── AppPreferences.swift       # UserDefaults 偏好（范围、主题、菜单栏、采集权）
+    │   ├── AppPreferences.swift       # UserDefaults 偏好（范围、主题、语言、菜单栏、采集权）
     │   └── StatsClock.swift           # Asia/Shanghai 的日期/小时/窗口计算
     ├── Design/DesignSystem.swift      # 色板、37 个工具的标签与配色、数字格式化、玻璃卡片
+    ├── Localization/Localization.swift # 语言解析（系统 / 手动）+ 全部用户可见文案
     └── Features/
         ├── DashboardView.swift        # 面板：顶部工具栏 + 单列滚动内容
         ├── OverviewSection.swift      # 四张指标卡 + 52 周热力图
@@ -137,6 +139,22 @@ apps/macos/
 
 主题（跟随系统 / 浅色 / 深色）通过 `preferredColorScheme` 应用；数字用等宽字体并开启
 `monospacedDigit`，避免数值跳动时抖动。
+
+### 中英双语
+
+界面支持简体中文与 English，**默认跟随 macOS 语言**（`Locale.preferredLanguages` 里第一个
+`zh*` / `en*`，都没有就落到英文），也可在「设置 → 应用 → 语言」里固定。
+
+- 所有用户可见文案都在 `Localization/Localization.swift` 的 `Copy` 里，一个 key 同时写中英两句，
+  视图/Store/引擎直接读 `Copy.xxx`；不要在别处写死中文，`scripts/check-localization.sh` 会拦下来；
+- `Localization` 是 `@Observable` 单例：SwiftUI 在 body 里读到 `Copy.xxx` 就登记了依赖，
+  切换语言时面板、设置、关于**原地重绘**，不用重启；菜单与窗口标题是 AppKit 建的，
+  由 `StatusItemController.observeLanguage()` 显式重写；
+- 需要跟随语言的**状态**不要存成字符串：`EngineController.Phase.failed` 存结构化的
+  `Failure`，`UsageStore.failure` 存 `Failure` 枚举，显示的句子在读的时候才拼；
+- 打包脚本在 `Info.plist` 里声明了 `CFBundleLocalizations`，因此系统「设置 → 通用 → 语言与地区
+  → 应用程序」里的单应用语言选择也会生效；
+- 自检：`apps/macos/scripts/check-localization.sh`（中文字面量只允许出现在 Localization.swift）。
 
 ## 布局陷阱（已踩过，别再踩）
 
@@ -183,6 +201,6 @@ swiftc -O -o /tmp/ocr apps/macos/scripts/ocr.swift && /tmp/ocr <screenshot.png>
 
 1. **引擎契约**：`bash packages/engine/scripts/smoke.sh`（全新数据目录 + `--no-hooks`，
    自带 stdout 握手、各端点 JSON、SIGTERM 清理与孤儿进程检查）。
-2. **面板与统计**：用同样的源码编译一个临时宿主（`swiftc` 编译除 `JusageMacApp.swift`
+2. **面板与统计**：用同样的源码编译一个临时宿主（`swiftc` 编译除 `MeterApp.swift`
    之外的全部源码 + 一个自带 `@main` 的文件），把 `DashboardPanel` 放进真实 `NSWindow`，
    再用 `swiftc` 编译的 OCR 工具读回文字坐标（见上一节）。真实窗口服务器才会合成玻璃。

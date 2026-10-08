@@ -36,7 +36,7 @@ struct OverviewSection: View {
         return [
             MetricCardModel(
                 id: "cost",
-                label: "预估费用",
+                label: Copy.metricCost,
                 value: Fmt.usd(totals.costUsd),
                 exact: Fmt.usd(totals.costUsd),
                 caption: nil,
@@ -44,13 +44,13 @@ struct OverviewSection: View {
                 trendPositive: changes.totalCostUsd >= 0,
                 sparkline: sparkline.map(\.costUsd),
                 help: MetricHelp(
-                    title: "预估费用",
-                    detail: "按本地定价表与已采集用量估算，不是账单金额。"
+                    title: Copy.metricCost,
+                    detail: Copy.metricCostHelp
                 )
             ),
             MetricCardModel(
                 id: "total-tokens",
-                label: "总 Token",
+                label: Copy.metricTotalTokens,
                 value: Fmt.tokens(Double(totals.tokens)),
                 exact: Fmt.tokensExact(Double(totals.tokens)),
                 caption: store.requestCaption,
@@ -58,34 +58,28 @@ struct OverviewSection: View {
                 trendPositive: changes.totalTokens >= 0,
                 sparkline: sparkline.map { Double($0.tokens) },
                 help: MetricHelp(
-                    title: "总 Token 构成",
+                    title: Copy.metricTotalTokensHelpTitle,
                     rows: tokenCompositionRows(totals),
-                    footnote: """
-                    总 Token = 输入 + 输出 + 缓存读 + 缓存写 + 其它
-                    请求数优先用本地请求证据；无证据时按 conversation 累计；不完整时可能偏低。
-                    """
+                    footnote: Copy.metricTotalTokensFootnote
                 )
             ),
             MetricCardModel(
                 id: "input-tokens",
-                label: "输入 Token",
+                label: Copy.metricInputTokens,
                 value: Fmt.tokens(totals.inputTokens),
                 exact: Fmt.tokensExact(totals.inputTokens),
-                caption: totals.cacheHitRate.map { "缓存命中率 \(Fmt.rate($0))" },
+                caption: totals.cacheHitRate.map { Copy.cacheHitRate(Fmt.rate($0)) },
                 trendText: Fmt.deltaTokens(inputDelta),
                 trendPositive: inputDelta >= 0,
                 sparkline: sparkline.map { Double($0.inputTokens) },
                 help: MetricHelp(
-                    title: "输入 Token",
-                    detail: """
-                    不含缓存读取与缓存写入。
-                    缓存命中率 = 缓存读 ÷（输入 + 缓存读 + 缓存写）。
-                    """
+                    title: Copy.metricInputTokens,
+                    detail: Copy.metricInputTokensHelp
                 )
             ),
             MetricCardModel(
                 id: "output-tokens",
-                label: "输出 Token",
+                label: Copy.metricOutputTokens,
                 value: Fmt.tokens(totals.outputTokens),
                 exact: Fmt.tokensExact(totals.outputTokens),
                 caption: nil,
@@ -93,8 +87,8 @@ struct OverviewSection: View {
                 trendPositive: outputDelta >= 0,
                 sparkline: sparkline.map { Double($0.outputTokens) },
                 help: MetricHelp(
-                    title: "输出 Token",
-                    detail: "部分工具（如 Codex）的推理 Token 已计入输出。"
+                    title: Copy.metricOutputTokens,
+                    detail: Copy.metricOutputTokensHelp
                 )
             ),
         ]
@@ -109,12 +103,12 @@ struct OverviewSection: View {
         let other = max(0, totals.tokens - totals.inputTokens - totals.outputTokens
             - totals.cachedInputTokens - totals.cacheCreationInputTokens)
         return [
-            MetricHelpRow(id: "input", label: "输入", value: Fmt.tokens(totals.inputTokens)),
-            MetricHelpRow(id: "output", label: "输出", value: Fmt.tokens(totals.outputTokens)),
-            MetricHelpRow(id: "cache-read", label: "缓存 · 读", value: Fmt.tokens(totals.cachedInputTokens)),
-            MetricHelpRow(id: "cache-write", label: "缓存 · 写", value: Fmt.tokens(totals.cacheCreationInputTokens)),
-            MetricHelpRow(id: "other", label: "其它", value: Fmt.tokens(other)),
-            MetricHelpRow(id: "total", label: "合计", value: Fmt.tokens(totals.tokens)),
+            MetricHelpRow(id: "input", label: Copy.tokenInput, value: Fmt.tokens(totals.inputTokens)),
+            MetricHelpRow(id: "output", label: Copy.tokenOutput, value: Fmt.tokens(totals.outputTokens)),
+            MetricHelpRow(id: "cache-read", label: Copy.tokenCacheRead, value: Fmt.tokens(totals.cachedInputTokens)),
+            MetricHelpRow(id: "cache-write", label: Copy.tokenCacheWrite, value: Fmt.tokens(totals.cacheCreationInputTokens)),
+            MetricHelpRow(id: "other", label: Copy.tokenOther, value: Fmt.tokens(other)),
+            MetricHelpRow(id: "total", label: Copy.tokenTotal, value: Fmt.tokens(totals.tokens)),
         ]
     }
 }
@@ -178,7 +172,7 @@ private struct MetricCard: View {
                     .foregroundStyle(Theme.foreground)
                     .lineLimit(1)
                     .minimumScaleFactor(0.75)
-                    .help("精确值：\(card.exact)")
+                    .help(Copy.exactValue(card.exact))
 
                 HStack(spacing: 4) {
                     Text(card.caption ?? " ")
@@ -283,7 +277,8 @@ struct HeatBin: Identifiable {
     let models: [String: Int64]
 }
 
-/// Daily activity grid, `日一二三四五六` rows × N week columns.
+/// Daily activity grid: seven weekday rows × N week columns, Sunday first.
+/// Row labels come from `Copy.weekdayInitials` (`日一二三四五六` / `SMTWTFS`).
 ///
 /// Deliberately **not** inside a horizontal `ScrollView`: a scroll view reports
 /// its content's width as its ideal width, which inflated the whole panel
@@ -301,14 +296,13 @@ private struct ActivityHeatmapCard: View {
     private let gutter: CGFloat = 12
     private let gutterGap: CGFloat = 5
     private let monthStrip: CGFloat = 10
-    private static let dayLabels = ["日", "一", "二", "三", "四", "五", "六"]
 
     var body: some View {
         CardSurface(padding: 11) {
             VStack(alignment: .leading, spacing: 6) {
                 CardHeader(
-                    title: "活动热力图",
-                    subtitle: "每日 Token 用量，点击某天可筛选整个看板"
+                    title: Copy.heatmapTitle,
+                    subtitle: Copy.heatmapSubtitle
                 )
                 // GeometryReader takes the width it is offered and never
                 // propagates an intrinsic width, which is what keeps the panel
@@ -344,7 +338,7 @@ private struct ActivityHeatmapCard: View {
             HStack(alignment: .top, spacing: gutterGap) {
                 VStack(alignment: .trailing, spacing: cellGap) {
                     ForEach(0..<7, id: \.self) { row in
-                        Text(Self.dayLabels[row])
+                        Text(Copy.weekdayInitials[row])
                             .font(AppFont.text(7))
                             .foregroundStyle(Theme.muted)
                             .frame(height: cellSize)
@@ -370,8 +364,8 @@ private struct ActivityHeatmapCard: View {
         }
     }
 
-    /// `M月` above the first column of each month. Positioned by offset with
-    /// `fixedSize` so a label wider than its column overflows instead of
+    /// The month name above the first column of each month. Positioned by offset
+    /// with `fixedSize` so a label wider than its column overflows instead of
     /// wrapping or stretching the layout.
     ///
     /// The month is derived from each column's own start date rather than from
@@ -393,7 +387,7 @@ private struct ActivityHeatmapCard: View {
             let date = StatsClock.addDays(column * 7, to: gridStart, tz)
             let month = StatsClock.month(date)
             if month != lastMonth {
-                labels.append((column, "\(month)月"))
+                labels.append((column, Copy.monthAbbreviation(month)))
                 lastMonth = month
             }
         }
@@ -453,13 +447,13 @@ private struct ActivityHeatmapCard: View {
     private var legend: some View {
         HStack(spacing: 4) {
             Spacer()
-            Text("少").font(AppFont.text(8)).foregroundStyle(Theme.muted)
+            Text(Copy.heatmapLess).font(AppFont.text(8)).foregroundStyle(Theme.muted)
             ForEach(0..<5, id: \.self) { level in
                 RoundedRectangle(cornerRadius: 2, style: .continuous)
                     .fill(Theme.heatmapLevel(level))
                     .frame(width: 9, height: 9)
             }
-            Text("多").font(AppFont.text(8)).foregroundStyle(Theme.muted)
+            Text(Copy.heatmapMore).font(AppFont.text(8)).foregroundStyle(Theme.muted)
         }
     }
 
@@ -508,16 +502,16 @@ private struct HeatmapCell: View {
 
     private var tooltip: String {
         var lines = [
-            "\(bin.date) · 等级 \(bin.level)",
-            "总用量 \(Fmt.tokens(Double(bin.tokens))) Token",
+            Copy.heatmapTooltipTitle(bin.date, level: bin.level),
+            Copy.heatmapTooltipTotal(Fmt.tokens(Double(bin.tokens))),
         ]
         let top = bin.models.sorted { $0.value > $1.value }.prefix(6)
         if !top.isEmpty {
-            lines.append("模型明细")
+            lines.append(Copy.modelBreakdown)
             let total = Double(bin.tokens)
             for (key, tokens) in top {
                 let parts = key.split(separator: "\u{1f}")
-                let source = parts.first.map { SourceCatalog.label(String($0)) } ?? "未知"
+                let source = parts.first.map { SourceCatalog.label(String($0)) } ?? Copy.unknown
                 let model = parts.count > 1 ? String(parts[1]) : ""
                 let pct = total > 0 ? Double(tokens) / total * 100 : 0
                 lines.append("  \(source) · \(model)  \(Fmt.tokens(Double(tokens))) · \(Fmt.pct(pct))")

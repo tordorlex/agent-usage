@@ -33,7 +33,7 @@ struct DashboardPanel: View {
     private var toolbar: some View {
         VStack(spacing: 6) {
             HStack(spacing: 6) {
-                Text("用量统计")
+                Text("Meter")
                     .font(AppFont.text(12, weight: .semibold))
                 if store.isSyncing {
                     ProgressView().controlSize(.mini)
@@ -75,34 +75,34 @@ struct DashboardPanel: View {
 
                 OverviewSection(metric: metric)
 
-                TokenTrendCard(points: store.trendPoints, periodLabel: trendPeriodLabel)
+                TokenTrendCard(points: store.trendPoints, isToday: store.range == .today)
                 DailyTrendCard(points: store.trendPoints, subtitle: trendSubtitle, metric: $metric)
 
                 StackedBarsCard(
-                    title: "工具与模型用量",
-                    subtitle: "按平台比较总 Token",
-                    help: "按编程工具与 Agent 比较总 Token",
+                    title: Copy.cardToolModel,
+                    subtitle: Copy.cardToolModelSubtitle,
+                    help: Copy.cardToolModelHelp,
                     rows: store.toolModelRows,
-                    emptyMessage: store.isFilteringSources ? "当前渠道暂无用量" : "暂无工具或模型用量",
+                    emptyMessage: store.isFilteringSources ? Copy.emptyChannelNoUsage : Copy.emptyNoToolModel,
                     visibleRows: 6
                 )
                 StackedBarsCard(
-                    title: "项目分布",
-                    subtitle: "按项目比较总 Token",
-                    help: "按工作目录查看用量。仅本地展示，不上报。部分工具如 Cursor 暂无项目信息。",
+                    title: Copy.cardProject,
+                    subtitle: Copy.cardProjectSubtitle,
+                    help: Copy.cardProjectHelp,
                     rows: store.projectStackedRows,
-                    emptyMessage: "暂无项目用量",
+                    emptyMessage: Copy.emptyNoProject,
                     visibleRows: 6
                 )
                 DistributionCard(
-                    title: "工具分布",
-                    subtitle: "按编程工具与 Agent 查看用量占比",
+                    title: Copy.cardToolDistribution,
+                    subtitle: Copy.cardToolDistributionSubtitle,
                     slices: store.distribution(by: .tool, metric: metric),
                     metric: $metric
                 )
                 DistributionCard(
-                    title: "模型分布",
-                    subtitle: "按模型查看 Token 与费用占比",
+                    title: Copy.cardModelDistribution,
+                    subtitle: Copy.cardModelDistributionSubtitle,
                     slices: store.distribution(by: .model, metric: metric),
                     metric: $metric
                 )
@@ -120,18 +120,18 @@ struct DashboardPanel: View {
     private var banners: some View {
         if let error = store.errorMessage {
             StatusBanner(tone: .error, message: error)
-        } else if case .failed(let reason) = env.engine.phase {
-            StatusBanner(tone: .error, message: reason)
+        } else if case .failed(let failure) = env.engine.phase {
+            StatusBanner(tone: .error, message: failure.message)
         } else if store.hasLoadedOnce, store.isEmptyDataset {
-            StatusBanner(tone: .info, message: "暂无用量数据")
+            StatusBanner(tone: .info, message: Copy.noUsageData)
         } else if !store.hasLoadedOnce {
-            StatusBanner(tone: .info, message: "本地服务正在恢复，请稍候")
+            StatusBanner(tone: .info, message: Copy.localServiceRecovering)
         }
     }
 
     private var footer: some View {
         HStack(spacing: 6) {
-            Text("最近同步：\(store.lastSyncCaption)")
+            Text(Copy.lastSync(store.lastSyncCaption))
                 .font(AppFont.text(9))
                 .foregroundStyle(Theme.muted)
             if store.isExpandingRange {
@@ -149,18 +149,14 @@ struct DashboardPanel: View {
 
     // MARK: - Derived labels
 
-    private var trendPeriodLabel: String {
-        store.range == .today ? "今日" : store.range.longLabel
-    }
-
     private var trendSubtitle: String {
         if store.selectedDate != nil {
-            return "\(Fmt.monthDay(store.focusedDate)) 按小时"
+            return Copy.byHour(Fmt.monthDay(store.focusedDate))
         }
         if store.range == .today {
-            return "今日按小时的 Token 与费用趋势"
+            return Copy.hourlyTrendToday
         }
-        return "最近 \(store.range.days) 天的 Token 与费用趋势"
+        return Copy.dailyTrendRange(store.range.days)
     }
 }
 
@@ -205,7 +201,7 @@ private struct ChannelFilterMenu: View {
     var body: some View {
         Menu {
             if !store.selectedSources.isEmpty {
-                Button("清空渠道筛选") { store.selectedSources = [] }
+                Button(Copy.clearChannelFilter) { store.selectedSources = [] }
                 Divider()
             }
             ForEach(store.availableSources, id: \.self) { source in
@@ -252,7 +248,7 @@ private struct DrilldownChip: View {
             Text(caption)
                 .font(AppFont.text(10))
                 .foregroundStyle(Theme.foreground)
-            Button("清除", action: onClear)
+            Button(Copy.clear, action: onClear)
                 .font(AppFont.text(10))
                 .buttonStyle(.borderless)
         }

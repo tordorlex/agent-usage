@@ -2,19 +2,19 @@
 import PackageDescription
 
 let package = Package(
-    name: "JusageMac",
+    name: "Meter",
     platforms: [
         // Liquid Glass (`glassEffect`, `GlassEffectContainer`, `.buttonStyle(.glass)`)
         // requires the macOS 26 SDK and runtime.
         .macOS("26.0")
     ],
     products: [
-        .executable(name: "JusageMac", targets: ["JusageMac"])
+        .executable(name: "Meter", targets: ["Meter"])
     ],
     targets: [
         .executableTarget(
-            name: "JusageMac",
-            path: "Sources/JusageMac",
+            name: "Meter",
+            path: "Sources/Meter",
             swiftSettings: [
                 .swiftLanguageMode(.v5)
             ]
