@@ -1,0 +1,124 @@
+name: 🍎 打包 macOS 应用
+
+# 在 GitHub 上手动「Publish release」时触发：把 Meter.app / Meter-<版本>.dmg 打进该 Release 的附件。
+# 只在人工发布后补产物 —— Release 由人写，CI 不建 Release、不改正文。
+# 附件只挂 GitHub；Gitee 发行版的元数据由 sync-release.yml 同步，附件仍需手动传（见 RELEASE.md）。
+on:
+  release:
+    types: [published]
+  # 构建失败后重跑用：指定要补产物的 tag。同名附件会被覆盖（见最后一步 --clobber）。
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 目标 Release 的 tag（如 v0.1.13）
+        required: true
+        type: string
+
+# gh release upload 需要写权限，其余一律只读。
+permissions:
+  contents: write
+
+# 同一个 tag 不并发构建，也不取消已经在跑的那次：发布是低频人工动作，等它跑完比中断更划算。
+concurrency:
+  group: release-macos-${{ github.event.release.tag_name || inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  build-macos:
+    name: 构建 Meter.app / dmg 并挂到 Release
+    # Liquid Glass（glassEffect / macOS 26 SDK）要求 macOS 26；标准 runner 里 macos-26 是 arm64，
+    # 所以产物是 Apple Silicon 单架构。Intel 得用 macos-26-intel（larger runner，付费），暂不做。
+    runs-on: macos-26
+    timeout-minutes: 60
+    env:
+      # release 事件取 tag_name，手动 dispatch 取输入的 tag；checkout 与上传都用它。
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+    steps:
+      # 必须检出 tag 指向的提交，否则 main 上的新代码会被打进旧版本的包。
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.release.tag_name || inputs.tag }}
+
+      # 版本取自根 package.json 的 packageManager 字段，不在这里重复写死。
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          # bundle.sh 会把 PATH 上这个 node 整个拷进 Meter.app，作为引擎运行时；与 CI 对齐取 22。
+          node-version: 22
+          cache: pnpm
+
+      # 与 ci.yml 的区别：本 Job 只构建 engine，不跑 desktop 测试，不需要真实的 electron 二进制，
+      # 跳过下载能省掉一次上百 MB 的拉取。
+      - name: 安装依赖
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: 1
+        run: pnpm install --frozen-lockfile
+
+      - name: 打印工具链
+        run: |
+          sw_vers
+          xcodebuild -version
+          swift --version
+          node --version
+
+      # 用户可见文案必须都在 Copy 表里，否则切成英文后仍显示中文 —— 发布前先卡一道。
+      - name: 校验本地化文案
+        run: bash apps/macos/scripts/check-localization.sh
+
+      # bundle.sh 自己处理 SwiftPM 缓存路径与 --disable-sandbox，runner 上可直接跑。
+      - name: 构建 Meter.app（deploy 引擎 + 内嵌 node）
+        run: bash apps/macos/scripts/bundle.sh
+
+      - name: 打包 dmg
+        run: bash apps/macos/scripts/dmg.sh --skip-build
+
+      # Release 附件不能是目录，所以 .app 要打包；ditto 才能保住引擎树里的相对符号链接与扩展属性
+      # （zip 命令行默认解引用软链，解出来的 app 起不来）。
+      - name: 归档 .app
+        run: |
+          set -euo pipefail
+          APP=apps/macos/dist/Meter.app
+          VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Contents/Info.plist")"
+          ditto -c -k --sequesterRsrc --keepParent "$APP" "apps/macos/dist/Meter-$VERSION.zip"
+
+      - name: 校验产物
+        run: |
+          set -euo pipefail
+          APP=apps/macos/dist/Meter.app
+          VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Contents/Info.plist")"
+
+          # ad-hoc 签名能通过校验，但不满足 Gatekeeper：用户首次打开要手动放行（见 RELEASE.md）。
+          codesign --verify --deep --strict "$APP"
+          # 内嵌的 node 要真能跑，否则用户机器上引擎起不来。
+          "$APP/Contents/Resources/JusageEngine/node" --version
+          file "$APP/Contents/MacOS/Meter"
+
+          # tag 与包内版本不一致通常是 tag 打错了，只提示不失败。
+          if [[ "${TAG#v}" != "$VERSION" ]]; then
+            echo "::warning::tag $TAG 与包内版本 $VERSION 不一致，确认一下发布的是不是同一个版本"
+          fi
+          ls -lh apps/macos/dist/Meter-*.dmg "apps/macos/dist/Meter-$VERSION.zip"
+
+      - name: 上传到 Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # --clobber：重跑时覆盖同名附件，不会因为附件已存在而失败。
+          gh release upload "$TAG" \
+            apps/macos/dist/Meter-*.dmg \
+            apps/macos/dist/Meter-*.zip \
+            --clobber
+
+      - name: 写入 Job 摘要
+        run: |
+          {
+            echo "## 🍎 Meter $TAG"
+            echo
+            echo "| 附件 | 大小 |"
+            echo "| --- | --- |"
+            for f in apps/macos/dist/Meter-*.dmg apps/macos/dist/Meter-*.zip; do
+              echo "| \`$(basename "$f")\` | $(du -h "$f" | cut -f1) |"
+            done
+          } >> "$GITHUB_STEP_SUMMARY"

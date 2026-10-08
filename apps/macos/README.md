@@ -57,6 +57,11 @@ pnpm build:macos:dmg          # 等价于 apps/macos/scripts/dmg.sh，--skip-bui
 以及 `apps/macos/dist/Meter-<version>.dmg`。两者都是 ad-hoc 签名，未做公证（notarization），
 首次打开需要右键「打开」或在「系统设置 → 隐私与安全性」里放行。
 
+发版时不需要在本地跑这两个脚本：[`release-macos.yml`](../../.github/workflows/release-macos.yml)
+在 GitHub 上手动发布 Release 后，会在 `macos-26` runner 上重跑同一套脚本，
+把 `Meter-<version>.zip`（内含 `Meter.app`）与 `Meter-<version>.dmg` 挂成该 Release 的附件。
+本地脚本是同一套命令，用来验证改动。
+
 App 图标取 `apps/macos/resources/icon.png`（无底透明版，1024²），缺失时回退到
 `apps/desktop/resources/icon.png`；构建时由 `sips` 生成各档尺寸再 `iconutil` 合成 `AppIcon.icns`。
 
