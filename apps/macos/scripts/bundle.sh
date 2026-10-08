@@ -72,8 +72,12 @@ fi
 
 echo "==> 1/5 Building the statistics engine (TypeScript)"
 cd "$REPO_ROOT"
+# The trailing "..." also builds the engine's workspace dependencies, i.e. core.
+# Without it a fresh clone fails here: the engine's tsc imports core's types from
+# packages/core/dist, which does not exist until core is built — TS2307 for the
+# module plus a cascade of TS7006 for callbacks whose types came from it.
 npm_config_manage_package_manager_versions=false \
-  pnpm --filter @juejin-opensource/jusage-engine build
+  pnpm --filter "@juejin-opensource/jusage-engine..." build
 
 echo "==> 2/5 Deploying the engine with its runtime dependencies"
 STAGING="$MACOS_DIR/.build/engine-deploy"
