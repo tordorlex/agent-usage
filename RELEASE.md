@@ -95,18 +95,13 @@ Electron 桌面端由这条命令推产物；**macOS 原生端（Meter）不在�
 
 ### 4. 撰写 GitHub Release
 
-按下方模板填写正文。**点「Publish release」这一步会同时触发两个 workflow**（保存草稿不触发）：
+按下方模板填写正文。**点「Publish release」会触发仓库里唯一的 workflow [`release-macos.yml`](.github/workflows/release-macos.yml)**（保存草稿不触发）：
 
-- [`release-macos.yml`](.github/workflows/release-macos.yml) —— 在 `macos-26` runner 上检出该 tag，重跑 `bundle.sh` / `dmg.sh`，把 `Meter-<版本>.zip`（内含 `Meter.app`）与 `Meter-<版本>.dmg` 挂成这个 Release 的附件。同名附件覆盖，可以重跑。
-- [`sync-release.yml`](.github/workflows/sync-release.yml) —— 把 **tag、标题、正文**同步到 Gitee 发行版。
+- 它在 `macos-26` runner 上检出该 tag，重跑 `bundle.sh` / `dmg.sh`，把 `Meter-<版本>.zip`（内含 `Meter.app`）与 `Meter-<版本>.dmg` 挂成这个 Release 的附件。同名附件覆盖，可以重跑。
+- 构建失败时，用该 workflow 的 **Run workflow** 填同一个 tag 重跑，不必重新发布 Release。
+- **没有同步 Gitee 的 workflow 了**：Gitee 发行版的标题、正文、附件若要继续维护，全部手动。
 
-> ⚠️ 两个 workflow 都**不同步安装包附件到 Gitee**。Meter 的 zip / dmg、desktop 的 dmg / exe 都要手动上传，否则 Gitee 侧用户下载不到。
->
-> ⚠️ macOS 产物构建失败时，用 `release-macos.yml` 的 **Run workflow** 填同一个 tag 重跑，不必重新发布 Release。
->
 > ⚠️ Meter 是 **ad-hoc 签名、未公证**，用户首次打开要在「系统设置 → 隐私与安全性」里放行（见 [apps/macos/README.md](./apps/macos/README.md)）。要免掉这一步得配 Developer ID 证书与公证。
->
-> ⚠️ 若 `sync-release` Job 报 tag 不存在，是 Gitee 镜像尚未同步完 GitHub 的 tag，等几分钟重跑即可。
 
 ### 5. 确认自动更新源
 

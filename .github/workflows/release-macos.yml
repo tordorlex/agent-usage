@@ -2,7 +2,7 @@ name: 🍎 打包 macOS 应用
 
 # 在 GitHub 上手动「Publish release」时触发：把 Meter.app / Meter-<版本>.dmg 打进该 Release 的附件。
 # 只在人工发布后补产物 —— Release 由人写，CI 不建 Release、不改正文。
-# 附件只挂 GitHub；Gitee 发行版的元数据由 sync-release.yml 同步，附件仍需手动传（见 RELEASE.md）。
+# 附件只挂 GitHub：仓库里已没有同步 Gitee 的 workflow，Gitee 发行版若要维护全靠手动（见 RELEASE.md）。
 on:
   release:
     types: [published]
@@ -48,7 +48,7 @@ jobs:
           node-version: 22
           cache: pnpm
 
-      # 与 ci.yml 的区别：本 Job 只构建 engine，不跑 desktop 测试，不需要真实的 electron 二进制，
+      # 本 Job 只构建 engine，不跑 desktop 测试，不需要真实的 electron 二进制，
       # 跳过下载能省掉一次上百 MB 的拉取。
       - name: 安装依赖
         env:

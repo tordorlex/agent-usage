@@ -90,6 +90,12 @@ CLI 构建固定 `VITE_BASE=/`。子路径在构建环境注入 `PUBLIC_PATH` / 
 
 `pnpm release:desktop:mac|win` 推 GitHub Release。`electron-builder.yml` 的 `publish` 仍是 GitHub；运行时更新源在同文件（默认 Gitee）。Electron 二进制走 `apps/desktop/.npmrc` 国内镜像；根 `pnpm.onlyBuiltDependencies` 已含 `electron`。
 
+## 工作流
+
+`.github/workflows` 只剩 `release-macos.yml`：在 GitHub 上手动发布 Release 时，在 `macos-26` runner 上构建 `Meter.app` / `Meter-<版本>.dmg` 并挂成该 Release 的附件。
+
+**没有 PR CI 门禁** —— 原三平台的 `ci.yml` 与同步 Gitee 的 `sync-release.yml` 已删除，构建与测试靠本地跑（见 CONTRIBUTING.md）。
+
 ---
 
 <!-- HEROUI-REACT-AGENTS-MD-START -->

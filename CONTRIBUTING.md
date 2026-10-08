@@ -80,8 +80,9 @@ PR 会自动带出模板，按模板填完即可。几个容易踩的点：
 - **改了面板 UI 要看两处。** `packages/dashboard/src` 与 `apps/desktop/src/renderer` 是同构但独立的两份代码，改一处时确认另一处是否需要同步。
 - **跨端改动**在 PR 正文写清影响范围。
 - 合并前确保 `pnpm build` 和 `pnpm test` 通过。`pnpm test` 会先构建再跑四个包的测试；只想跑单个包时用 `pnpm --filter @juejin-opensource/jusage-core test`（把包名换成 `jusage` / `jusage-dashboard` / `jusage-desktop` 即可）。
+- 改了 Mac 端要本地构建一次：`pnpm build:macos:app`，再跑 `bash apps/macos/scripts/check-localization.sh` 确认没有文案漏在 `Copy` 表外。
 
-PR 推上来后 CI（`.github/workflows/ci.yml`）会在 Ubuntu + Node 22 上跑同一套命令：`pnpm build` → 桌面端 `typecheck` → 四个包的测试。CI 红了先看是哪个包哪一步挂的，本地用上面对应的 `--filter` 命令复现。
+> ⚠️ **仓库没有 PR CI 门禁。** 原来那套三平台 `ci.yml` 已删除，`.github/workflows` 下只剩发布用的 [`release-macos.yml`](./.github/workflows/release-macos.yml)。上面这些命令没人替你跑，合并前必须在本地过一遍。
 
 ## 按端启动
 
